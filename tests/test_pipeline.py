@@ -299,3 +299,109 @@ def test_live_session_ingests_and_segments(tmp_path):
     doc = json.loads((tmp_path / "proj" / "live" / "live.json").read_text())
     fr = {p["name"]: p["fraction"] for p in doc["phases"]}
     assert abs(fr["dark"] - 0.5) < 0.12 and doc["slices"] == 40
+
+
+def test_advisor_finds_oversampling():
+    from nuscope_tomo.advisor import advise, chord_lengths
+    m = np.zeros((5, 50, 60), bool)
+    m[:, :, 20:30] = True
+    assert set(chord_lengths(m, 2, 10.0)) == {100.0}
+    f = ndi.gaussian_filter(np.random.default_rng(0).random((48, 160, 160)), 8)
+    lab = (f > np.median(f)).astype(np.uint8) + 1  # features ~100 nm, sampled at 5 nm / 10 nm
+    rec = advise(Volume(lab, VoxelSize(10, 5, 5), kind="labels"))["recommendation"].iloc[0]
+    assert rec.recommended_pixel_nm >= 10 and rec.recommended_slice_nm >= 20
+    assert rec.max_change_at_recommendation <= 0.05
+
+
+def test_cohort_detects_large_difference_not_noise():
+    from nuscope_tomo.cohort import compare, summarize
+
+    def sample(seed, q):
+        f = ndi.gaussian_filter(np.random.default_rng(seed).random((60, 120, 120)), 2)
+        return Volume((f > np.quantile(f, q)).astype(np.uint8) + 1, VoxelSize(10, 10, 10),
+                      kind="labels")
+
+    res = compare({"a": summarize(sample(0, 0.6)), "b": summarize(sample(1, 0.6)),
+                   "c": summarize(sample(2, 0.3))})["tests"]
+    frac = res[(res.metric == "fraction") & (res.phase == "2")]
+    ab = frac[(frac.a == "a") & (frac.b == "b")].iloc[0]
+    ac = frac[(frac.a == "a") & (frac.b == "c")].iloc[0]
+    assert not ab.significant and ac.significant
+    assert ab.min_detectable_rel > abs(ab.rel_difference)
+
+
+def test_sparse_dkl_beats_interpolation():
+    pytest.importorskip("torch")
+    from nuscope_tomo.sparse import active_sparse, reconstruct_interpolate
+    rng = np.random.default_rng(0)
+    B, ny, nx = 4, 40, 40
+    f = ndi.gaussian_filter(rng.random((ny * B, nx * B)), 3)
+    ph = (f > np.median(f)).astype(int)
+    se = (ph * 80 + 60 + rng.normal(0, 6, ph.shape)).astype(np.float32)
+    truth = ph.reshape(ny, B, nx, B).mean((1, 3))[..., None]  # composition follows the phase
+    meas = (truth + rng.normal(0, 0.15, truth.shape)).reshape(-1, 1)
+    r = active_sparse(se, (ny, nx), B, lambda i: meas[i], budget=0.08, init=0.03, rounds=2,
+                      patch=12)
+    itp = reconstruct_interpolate((ny, nx), r["measured_idx"], r["measured_values"])
+    rmse = lambda a: np.sqrt(np.mean((a - truth) ** 2))  # noqa: E731
+    assert rmse(r["mean"]) < 0.8 * rmse(itp)
+
+
+def test_autoscript_dry_run_records_calls_and_guards():
+    from nuscope_tomo.autonomy import AutoScriptFIBSEM, SafetyError, SafetyLimits
+    fib = AutoScriptFIBSEM(dry_run=True, limits=SafetyLimits(max_slices=2, max_slice_nm=50))
+    fib.mill(20)
+    fib.image(10, 2.0)
+    fib.autofocus()
+    fib.beam_shift(5, -3)
+    calls = [c["call"] for c in fib.calls.entries]
+    assert calls == ["patterning.create_cleaning_cross_section+run", "imaging.grab_frame",
+                     "auto_functions.run_auto_focus", "beams.electron_beam.beam_shift"]
+    assert fib.calls.entries[0]["height_m"] == pytest.approx(20e-9)
+    assert fib.calls.entries[1]["hfw_m"] == pytest.approx(10e-9 * 1536)
+    with pytest.raises(SafetyError):
+        fib.mill(80)  # thicker than allowed
+    with pytest.raises(SafetyError):
+        fib.arm("yes")  # the arming phrase must be exact
+    fib.mill(20)
+    with pytest.raises(SafetyError):
+        fib.mill(20)  # slice limit
+
+
+def test_agent_on_twin_corrects_drift_and_focus():
+    from nuscope_tomo.autonomy import DigitalTwin, Policy, SliceAndViewAgent
+    rng = np.random.default_rng(0)
+    f = ndi.gaussian_filter(rng.random((80, 96, 96)), (2, 4, 4))
+    ph = (np.digitize(f, np.percentile(f, [50])) + 1).astype(np.uint8)
+    clean = Volume((ph * 70 + 40).astype(np.float32), VoxelSize(20, 10, 10))
+    labels = Volume(ph, VoxelSize(20, 10, 10), kind="labels")
+    noisy = Volume((ph * 70 + 40 + rng.normal(0, 8, ph.shape)).clip(0, 255).astype(np.uint8))
+    clf = PixelClassifier(sigmas=(1, 2), n_estimators=20, class_names={1: "a", 2: "b"}).fit(
+        noisy, auto_annotations(noisy, classes=2, n_slices=3, erode_px=2))
+    twin = DigitalTwin(clean, labels, {1: {"X": 1.0}, 2: {"Y": 1.0}}, noise_at_1us=8,
+                       drift_nm_per_slice=15, defocus_px_per_slice=0.08)
+    pol = Policy(max_depth_nm=1000, eds_every=0, stop_on_precision=False, stats_every=0)
+    res = SliceAndViewAgent(twin, clf, pol).run()
+    acts = res["decisions"].action.value_counts()
+    assert res["slices"] >= 20 and acts.get("beam_shift", 0) > 0 and acts.get("autofocus", 0) > 0
+    assert np.hypot(*twin.drift) < 60  # drift kept in check (would random-walk otherwise)
+
+
+def test_cnmf_pansharpening_beats_upsampling():
+    from nuscope_tomo.sparse import cnmf_pansharpen, fusion_metrics
+    rng = np.random.default_rng(0)
+    H = W = 128
+    B, E = 8, 12
+    f = ndi.gaussian_filter(rng.random((H, W)), 4)
+    lab = np.digitize(f, np.percentile(f, [33, 66]))
+    spec = np.abs(rng.normal(0, 1, (3, E))) + 0.1
+    truth = spec[lab]
+    X = truth + rng.normal(0, 0.05, truth.shape)
+    YH = X.reshape(H // B, B, W // B, B, E).mean((1, 3))  # coarse full-spectrum map
+    sel = [0, 3, 7]                                        # three fixed-wavenumber maps
+    R = np.zeros((3, E))
+    R[range(3), sel] = 1
+    out = cnmf_pansharpen(YH, X[..., sel], R, B, n_components=3)["cube"]
+    up = np.repeat(np.repeat(YH, B, 0), B, 1)
+    m, u = fusion_metrics(out, truth), fusion_metrics(up, truth)
+    assert m["cc"] > u["cc"] + 0.1 and m["sam"] < 0.6 * u["sam"]

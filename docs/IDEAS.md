@@ -19,7 +19,9 @@ Ordered by how much they change what a microscopist can claim from a dataset.
 | Idea | Gap | NuScope | Status |
 |---|---|---|---|
 | **Live acquisition mode** | Analysis starts after acquisition ends | `nuscope watch`: ingests slices as Auto Slice & View writes them, pre-processes and segments on the fly, updates Studio live, and reports when metrics reach RVE so milling can stop early | done |
-| Acquisition advisor | None | From early slices: recommends slice thickness and pixel size from feature sizes (Nyquist), predicts the volume needed for a target confidence | next |
+| Acquisition advisor | None | From early slices: pixel size and slice thickness from feature sizes and an empirical coarsening test ("would coarser sampling have changed the answer?"), plus the depth / field of view needed for a target precision | done |
+| **Context-driven sparse EDS** (after Kalinin, Ziatdinov et al.) | EDS maps every pixel | Deep kernel learning maps SE context → composition and chooses the next EDS pixels where it is least certain; at 10 % of pixels it matches a full map | done |
+| **Self-driving slice-and-view** (Thermo Fisher AutoScript) | Fixed Auto Slice & View recipes | Agent adapts focus, drift, dwell, slice thickness and sparse EDS, stops at the requested precision; AutoScript backend (dry-run by default, arming phrase, safety limits), digital twin and shadow mode for review before beam time | done (twin); hardware untested |
 
 ## 3. AI that is open and accountable
 
@@ -35,7 +37,7 @@ Ordered by how much they change what a microscopist can claim from a dataset.
 
 | Idea | Gap | NuScope | Status |
 |---|---|---|---|
-| Cohort comparison | One project at a time | Compare many samples / conditions with statistics (e.g. cycled vs pristine cathodes) | next |
+| Cohort comparison | One project at a time | Compare samples with sampling-aware statistics, Holm correction, minimum detectable difference and the volume needed to detect it | done |
 | Statistical descriptors + synthetic twins | Only measured volume | Two-point correlation, chord lengths; generate larger statistically equivalent volumes for simulation | next |
 | FAIR export | Proprietary project files | One-click RO-Crate package: data, recipe, versions, report, ready for a DOI | next |
 | Remote / shared Studio | Desktop licence per seat | Browser UI next to the data; multi-user annotation and comments at 3D positions | partly done |

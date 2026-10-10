@@ -39,6 +39,9 @@ coordination 3.0).*
 | **Quantification** | per object: volume, surface area, equivalent diameter, sphericity, solidity, Feret, ellipsoid axes, elongation/flatness, orientation, nearest neighbour, intensity/element means. Per phase: volume fraction, specific surface, interface density, Euler number, percolation, geodesic tortuosity, continuous size distribution |
 | **Materials analyses** | triple-phase boundary length density (total / active), steady-state diffusion & conduction solver (D_eff/D₀, tortuosity factor, MacMullin number; Avizo XLab counterpart), pore- and particle-network model (throat/contact sizes, coordination numbers) |
 | **Beyond Avizo** | **data-health inspector** (per-slice SNR, sharpness, curtaining, drift, blank/duplicate slices, automatic slice-thickness check), **uncertainty on every number** (integral-range sampling error, ±1-voxel segmentation sensitivity, representative-volume size), **live acquisition mode** (`nuscope watch`: analyse while the FIB mills, tells you when precision is reached), **self-supervised Noise2Void** denoising and a **2.5D U-Net** trained from scribbles (Apple MPS / CUDA). See [docs/IDEAS.md](docs/IDEAS.md) |
+| **Acquisition & experiment design** | **acquisition advisor** (pixel size, slice thickness from feature sizes and an empirical "would coarser sampling change the answer?" test; depth / field of view for a target precision), **cohort comparison** (`nuscope compare`: sampling-aware statistics, Holm correction, minimum detectable difference, volume needed to detect it) |
+| **Sparse & fused chemistry** | context-driven sparse EDS by **deep kernel learning** (after Kalinin, Ziatdinov et al.) with SE and BSE context; **coupled-NMF pan-sharpening** of a coarse EDS map with physically linked high-resolution channels (BSE, Castaing's rule; after Borodinov, Kalinin, Ovchinnikova et al., npj Comput. Mater. 2019); benchmark with SE-invisible chemistry |
+| **Self-driving slice-and-view** | agent that refocuses, corrects drift, adapts dwell and slice thickness, takes sparse EDS and stops at the requested precision; **Thermo Fisher AutoScript** backend (dry-run by default, arming phrase, safety limits; not yet run on hardware), digital twin built from your own data, shadow mode that records the AutoScript calls an autonomous run would issue |
 | **Chemistry (EDS)** | element-map stacks → registration to SE → 3D composition → unsupervised chemical phases (k-means / GMM / NMF) → composition per SE phase or object; forward simulator for validation |
 | **Visualization** | GPU renders (volume, phase surfaces with cut-away, objects coloured by any measurement), turntable MP4s, figure panels with true aspect and scale bars |
 | **Studio** | browser UI: **FIB-SEM Wizard** (guided pre-processing, like Avizo's DualBeam 3D Wizard), linked XY/XZ/YZ views, WebGL2 ray-marched 3D (DVR / MIP / iso / labels, clipping), scribble annotation → train → segment, every operation as a form, sortable measurement tables. All actions are auto-recorded as a recipe |
@@ -59,6 +62,9 @@ nuscope studio projects/fib_sem_335            # open http://127.0.0.1:8765
 nuscope ops                                    # list operations and parameters
 nuscope watch /acq/folder -p projects/run --voxel 20 5 5 --model rf.pkl   # live mode
 python examples/beyond_avizo.py                # data health, Noise2Void, U-Net, RVE
+nuscope compare A=projects/a/run B=projects/b/run --out cohort
+python examples/chemical_fusion.py             # sparse DKL vs pan-sharpening benchmark
+python examples/self_driving.py agent          # autonomous run on the digital twin
 python examples/showcase.py                    # figures, renders and animation
 ```
 
@@ -85,13 +91,14 @@ and open it from any laptop. The browser only receives slices and a downsampled 
   or an ROI for very large data.
 - **Anisotropy everywhere.** FIB-SEM voxels are typically 5–10 nm in XY and 10–50 nm in
   Z. Distances, filters, surface areas and renders all use physical spacing.
-- **Validated against ground truth.** `pytest` runs 20 tests on synthetic phantoms.
+- **Validated against ground truth.** `pytest` runs 26 tests on synthetic phantoms.
   They cover drift recovery, stripe removal, sphere volume, area and sphericity (within 1–2 %),
   percolation and tortuosity, random-forest accuracy, watershed splitting, TPB length on a
   straight triple line, transport through a straight channel (τ = 1, D_eff = ε), the neck of two
   fused spheres, slice-thickness detection, integral-range error prediction, Noise2Void,
-  U-Net, live ingestion, EDS registration and phase recovery, the recipe engine and the
-  Studio API.
+  U-Net, live ingestion, the advisor, cohort statistics, sparse DKL, pan-sharpening, the
+  AutoScript dry-run and safety guards, the agent on a twin, EDS registration and phase
+  recovery, the recipe engine and the Studio API.
 - **Honest alignment.** Correlation cannot separate stage drift from microstructure that is
   inclined to the milling axis, which is especially a problem with thick slices. `align`
   therefore detects stacks that are already registered and leaves them alone, and supports

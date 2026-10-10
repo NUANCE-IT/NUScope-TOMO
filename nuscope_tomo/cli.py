@@ -5,6 +5,7 @@
     nuscope run    recipe.yaml [-p project_dir]
     nuscope studio [project_dir] [--port 8765]
     nuscope watch  <acquisition folder> -p project --voxel 20 5 5 [--model rf.pkl]
+    nuscope compare NAME=project_dir [NAME=project_dir ...] [--out dir]
 """
 from __future__ import annotations
 
@@ -34,6 +35,9 @@ def main(argv=None) -> int:
     w.add_argument("--model", help="trained PixelClassifier (.pkl) for live segmentation")
     w.add_argument("--target", type=float, default=0.05, help="relative precision to reach")
     w.add_argument("--idle", type=float, default=60, help="stop after this many idle seconds")
+    c = sub.add_parser("compare", help="compare samples with uncertainty-aware statistics")
+    c.add_argument("samples", nargs="+", help="NAME=project_dir (a recipe output folder)")
+    c.add_argument("--out", default="cohort")
     args = ap.parse_args(argv)
 
     if args.cmd == "info":
@@ -60,6 +64,20 @@ def main(argv=None) -> int:
         from .live import LiveSession
         LiveSession(args.folder, args.project, VoxelSize(*args.voxel), args.model,
                     target_rel_error=args.target).run(idle_timeout=args.idle)
+    elif args.cmd == "compare":
+        from .cohort import compare, load_project, plot
+        out = Path(args.out)
+        out.mkdir(parents=True, exist_ok=True)
+        smp = {}
+        for item in args.samples:
+            name, _, path = item.partition("=")
+            smp[name] = load_project(path)
+        res = compare(smp)
+        res["tests"].to_csv(out / "tests.csv", index=False)
+        res["summary"].to_csv(out / "summary.csv", index=False)
+        plot(res, str(out / "cohort.png"))
+        print(res["tests"][["a", "b", "phase", "metric", "difference", "p_holm",
+                            "significant"]].to_string())
     elif args.cmd == "studio":
         from .studio.server import serve
         serve(args.project, host=args.host, port=args.port)

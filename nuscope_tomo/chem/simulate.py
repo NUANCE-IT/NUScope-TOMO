@@ -27,6 +27,7 @@ def simulate_eds(phases: np.ndarray, compositions: dict[int, dict[str, float]],
     z_index = np.arange(0, phases.shape[0], every)
     ny, nx = phases.shape[1] // bin_xy, phases.shape[2] // bin_xy
     maps = {e: np.zeros((len(z_index), ny, nx), np.float32) for e in elements}
+    truth_maps = {e: np.zeros((len(z_index), ny, nx), np.float32) for e in elements}
     psf = psf_nm / se_voxel.y
     for k, z in enumerate(z_index):
         ph = phases[z]
@@ -38,10 +39,12 @@ def simulate_eds(phases: np.ndarray, compositions: dict[int, dict[str, float]],
             img = ndi.gaussian_filter(lut[ph], psf)
             lo = img[: ny * bin_xy, : nx * bin_xy].reshape(ny, bin_xy, nx, bin_xy).mean((1, 3))
             lo = ndi.shift(lo, shift_px, order=1, mode="nearest")
+            truth_maps[e][k] = lo
             maps[e][k] = rng.poisson(lo * counts_per_pixel).astype(np.float32)
     vs = VoxelSize(se_voxel.z * every, se_voxel.y * bin_xy, se_voxel.x * bin_xy)
     eds = EDSStack(maps, vs, z_index)
-    truth = {"shift_px": shift_px, "bin_xy": bin_xy, "every": every, "elements": elements}
+    truth = {"shift_px": shift_px, "bin_xy": bin_xy, "every": every, "elements": elements,
+             "noise_free": truth_maps}
     if write_to:
         import tifffile
         root = Path(write_to)
