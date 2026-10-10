@@ -51,7 +51,7 @@ with plt.rc_context(STYLE):
     ax[0].set_title("Where the time goes", loc="left")
     for i, m in enumerate(names):
         e = Tr[m].dropna(subset=["err_dark phase"])
-        ax[1].plot(e.t_h, 100 * e["err_dark phase"], color=PALETTE[[5, 3, 0][i]], lw=1.8,
+        ax[1].plot(e.t_h, 100 * e["err_dark phase"], color=["#8a94a6", PALETTE[1], PALETTE[0]][i], lw=2.2,
                    label=names[m])
     ax[1].axhline(20, color="#8a94a6", ls="--", lw=1)
     ax[1].text(ax[1].get_xlim()[1] * 0.02 if False else 0.1, 21, "target ±20 %", color="#8a94a6",
@@ -62,8 +62,8 @@ with plt.rc_context(STYLE):
     tr = Tr["agent"]
     ax[2].step(tr.depth_um, tr.thickness_nm, where="post", color=PALETTE[4], label="slice thickness (nm)")
     ax2 = ax[2].twinx()
-    ax2.plot(tr.depth_um, tr.dwell_us, color=PALETTE[1], label="dwell (µs)")
-    ax2.set_ylabel("dwell (µs)", color=PALETTE[1])
+    ax2.plot(tr.depth_um, tr.dwell_us, color=PALETTE[2], ls="--", label="dwell (µs)")
+    ax2.set_ylabel("dwell (µs)", color=PALETTE[2])
     ax[2].set_ylabel("slice thickness (nm)", color=PALETTE[4])
     marks = {"autofocus": ("v", PALETTE[2]), "beam_shift": ("|", "#cccccc"), "eds": ("D", PALETTE[0]),
              "stop": ("X", PALETTE[5])}

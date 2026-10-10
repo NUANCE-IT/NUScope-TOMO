@@ -51,6 +51,12 @@ uncertainty / RVE on every metric, live acquisition mode, Noise2Void, sparse-lab
 5. **Open formats**: OME-Zarr, TIFF, CSV, STL/PLY, MP4. No proprietary project files.
 6. **Validated**: each analysis has a ground-truth test (analytical geometry or forward model).
 
+## Added after the Avizo comparison
+
+Acquisition advisor; cohort statistics with detectability; sparse DKL and coupled-NMF
+pan-sharpened chemistry (benchmarked with SE-invisible chemistry); self-driving slice-and-view
+(AutoScript backend in dry-run, digital twin, shadow mode). See docs/IDEAS.md.
+
 ## Next milestones
 
 1. Active learning in Studio (annotate where the model is least certain); model cards.
@@ -58,3 +64,6 @@ uncertainty / RVE on every metric, live acquisition mode, Noise2Void, sparse-lab
 3. Native EDS readers: Oxford `.h5oina`, Bruker `.bcf`.
 4. Permeability (lattice Boltzmann) and electrochemical properties for battery cathodes.
 5. Studio: click-to-select objects, measurement filters linked to 3D highlighting, report export.
+6. First hardware session for the AutoScript backend: shadow-mode review, then a supervised
+   run with conservative limits; calibrate the twin's time model against a real cycle.
+7. Pan-sharpening on full EDS spectra (hundreds of energy channels) and on ToF-SIMS.

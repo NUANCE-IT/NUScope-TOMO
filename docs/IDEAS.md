@@ -20,7 +20,8 @@ Ordered by how much they change what a microscopist can claim from a dataset.
 |---|---|---|---|
 | **Live acquisition mode** | Analysis starts after acquisition ends | `nuscope watch`: ingests slices as Auto Slice & View writes them, pre-processes and segments on the fly, updates Studio live, and reports when metrics reach RVE so milling can stop early | done |
 | Acquisition advisor | None | From early slices: pixel size and slice thickness from feature sizes and an empirical coarsening test ("would coarser sampling have changed the answer?"), plus the depth / field of view needed for a target precision | done |
-| **Context-driven sparse EDS** (after Kalinin, Ziatdinov et al.) | EDS maps every pixel | Deep kernel learning maps SE context → composition and chooses the next EDS pixels where it is least certain; at 10 % of pixels it matches a full map | done |
+| **Context-driven sparse EDS** (after Kalinin, Ziatdinov et al.) | EDS maps every pixel | Deep kernel learning maps image context → composition and measures where it is least certain. With SE + BSE context, 10 % of the EDS time comes within ~1 % phase accuracy of a full map; SE-only context is blind to chemistry SE cannot see | done |
+| **Pan-sharpened chemistry** (after Borodinov, Kalinin, Ovchinnikova et al. 2019) | — | Coupled-NMF fusion of a coarse EDS map with physically linked high-resolution channels (BSE via Castaing's rule) | done; next: full energy spectra (low-rank), ToF-SIMS |
 | **Self-driving slice-and-view** (Thermo Fisher AutoScript) | Fixed Auto Slice & View recipes | Agent adapts focus, drift, dwell, slice thickness and sparse EDS, stops at the requested precision; AutoScript backend (dry-run by default, arming phrase, safety limits), digital twin and shadow mode for review before beam time | done (twin); hardware untested |
 
 ## 3. AI that is open and accountable
