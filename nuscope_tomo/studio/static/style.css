@@ -118,3 +118,10 @@ footer a { color: #9cc9ff; text-decoration: none; }
 #wiz-steps li.running .st { color: var(--accent2); }
 #wiz-steps li.done .st { color: var(--ok); }
 #wiz-steps li.off { opacity: .45; }
+
+#live-pill { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: #3a1016; color: #ff8a8a; border: 1px solid #7a2a33; }
+#live-pill.stop { background: #0f3324; color: var(--ok); border-color: #1f6b4b; }
+#live-body .ph { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; margin: 3px 0;
+  font-variant-numeric: tabular-nums; }
+#live-body .ok { color: var(--ok); } #live-body .no { color: var(--accent2); }

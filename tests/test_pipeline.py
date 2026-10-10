@@ -268,3 +268,34 @@ def test_unet_from_scribbles_matches_forest():
     rf = (PixelClassifier(n_estimators=40).fit(v, ann).predict(v).numpy() == ph).mean()
     un = (unet_segment(v, annotations=ann, classes=3, steps=300)["volume"].numpy() == ph).mean()
     assert un > rf - 0.03
+
+
+def test_live_session_ingests_and_segments(tmp_path):
+    from nuscope_tomo.live import LiveSession
+    rng = np.random.default_rng(0)
+    nz, h, w = 40, 200, 260
+    f = ndi.gaussian_filter(rng.random((nz, 140, 200)), (2, 5, 5))
+    ph = (np.digitize(f, np.percentile(f, [50])) + 1).astype(np.uint8)  # 2 phases
+    frames = np.zeros((nz, h, w), np.uint8)
+    frames[:, 40:180, 30:230] = (ph * 50 + 30 + rng.normal(0, 6, ph.shape)).clip(0, 255)
+    frames[:, 15:40, 30:230] = 235  # Pt cap
+    # model trained on processed-like data (same intensities, binned 2x)
+    small = frames[:, 40:180, 30:230].reshape(nz, 70, 2, 100, 2).mean((2, 4)).astype(np.uint8)
+    sv = Volume(small)
+    clf = PixelClassifier(sigmas=(1, 2, 4), n_estimators=30,
+                          class_names={1: "dark", 2: "bright"}).fit(
+        sv, auto_annotations(sv, classes=2, n_slices=3, erode_px=2))
+    clf.save(tmp_path / "m.pkl")
+    acq = tmp_path / "acq"
+    acq.mkdir()
+    sess = LiveSession(acq, tmp_path / "proj", VoxelSize(20, 5, 5), tmp_path / "m.pkl",
+                       stats_every=10, log=lambda *_: None)
+    for i, fr in enumerate(frames):
+        tifffile.imwrite(acq / f"slice_{i:03d}.tif", fr)
+        sess.step()  # first poll sees the file, second confirms its size is stable
+        sess.step()
+    assert sess.stores["raw"].shape[0] == nz
+    assert sess.stores["labels"].shape[0] == nz
+    doc = json.loads((tmp_path / "proj" / "live" / "live.json").read_text())
+    fr = {p["name"]: p["fraction"] for p in doc["phases"]}
+    assert abs(fr["dark"] - 0.5) < 0.12 and doc["slices"] == 40

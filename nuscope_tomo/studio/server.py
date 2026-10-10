@@ -73,6 +73,8 @@ class Project:
             return self.memory[vid]
         if vid not in self.volumes:
             raise HTTPException(404, f"no volume {vid}")
+        if vid.startswith("live/"):  # growing during acquisition: reopen every time
+            return Volume.from_zarr(self.volumes[vid])
         return _open(str(self.volumes[vid]))
 
 
@@ -279,6 +281,15 @@ def create_app(project_dir: str | Path) -> FastAPI:
 
         threading.Thread(target=work, daemon=True).start()
         return {"job": jid}
+
+    @app.get("/api/live")
+    def live():
+        p = proj.root / "live" / "live.json"
+        if not p.exists():
+            return {"status": "none"}
+        doc = json.loads(p.read_text())
+        doc["age_s"] = round(time.time() - p.stat().st_mtime, 1)
+        return doc
 
     @app.get("/api/jobs")
     def list_jobs():

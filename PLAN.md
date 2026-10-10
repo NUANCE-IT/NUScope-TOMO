@@ -18,10 +18,9 @@ package extensions (XLab, pore network modelling, XFiber, XDVC).
 | DualBeam 3D Wizard (guided pre-processing) | **Studio FIB-SEM Wizard**: 7 editable steps, per-step progress, recorded as recipe | done |
 | Multi-dataset co-registration, mismatched fields of view | EDS→SE registration with FOV mapping (`chem.register_to_se`) | done (2D per slice) |
 | | General 3D rigid/affine registration of a second volume (BSE + SE, ToF-SIMS) | next |
-| AI denoising (pre-trained / custom) | NLM, TV, anisotropic 3D Gaussian | done |
-| | Noise2Void self-supervised denoiser (PyTorch, MPS/CUDA) | next |
-| AI segmentation with minimal annotation | Scribble-trained random forest (41 features), painted in Studio | done |
-| | U-Net trained from Studio annotations; pre-trained particle detector | next |
+| AI denoising (pre-trained / custom) | NLM, TV, anisotropic 3D Gaussian; **Noise2Void** self-supervised (MPS/CUDA) | done |
+| AI segmentation with minimal annotation | Scribble-trained random forest (41 features); **2.5D U-Net** distilled from the forest's pseudo-labels | done |
+| | pre-trained particle detector | next |
 | Near-instant AI-assisted object selection | click-to-select object in Studio (region grow on the RF probability map) | next |
 | Multi-class segmentation (cathode/binder, shale/pore, coatings) | multi-class RF + majority smoothing | done |
 | 200+ measurements, custom measurements | 22 per-object measures, phase metrics, any pandas expression on the tables | done |
@@ -36,6 +35,11 @@ package extensions (XLab, pore network modelling, XFiber, XDVC).
 | Recipes, reproducibility | YAML recipes, provenance log, Studio actions auto-recorded | done |
 | — (beyond Avizo) | Correlative EDS chemical phase mapping with a forward simulator; browser UI next to the data; open formats; ground-truth test suite | done |
 
+## Beyond Avizo
+
+See [docs/IDEAS.md](docs/IDEAS.md). Built: data-health inspector with slice-thickness check,
+uncertainty / RVE on every metric, live acquisition mode, Noise2Void, sparse-label U-Net.
+
 ## What "more modern than Avizo" means here
 
 1. **Browser-based Studio**: runs on a lab workstation or HPC node and opens from any
@@ -49,8 +53,7 @@ package extensions (XLab, pore network modelling, XFiber, XDVC).
 
 ## Next milestones
 
-1. Deep learning: U-Net segmentation and Noise2Void denoising (PyTorch, Apple MPS / CUDA),
-   trained from Studio annotations.
+1. Active learning in Studio (annotate where the model is least certain); model cards.
 2. 3D multi-volume registration (SE/BSE, ToF-SIMS, EBSD) with mismatched fields of view.
 3. Native EDS readers: Oxford `.h5oina`, Bruker `.bcf`.
 4. Permeability (lattice Boltzmann) and electrochemical properties for battery cathodes.

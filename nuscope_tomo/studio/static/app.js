@@ -358,6 +358,36 @@ $("#wiz-run").onclick = async () => {
   }
 };
 
+// --------------------------------------------------------------------- live
+async function pollLive() {
+  try {
+    const L = await (await api("/api/live")).json();
+    const pill = $("#live-pill"), panel = $("#panel-live");
+    if (L.status === "none") { pill.hidden = panel.hidden = true; return; }
+    pill.hidden = panel.hidden = false;
+    const running = L.status === "running" && L.age_s < 120;
+    pill.textContent = `${running ? "● LIVE" : "LIVE finished"} · ${L.slices} slices · ${L.depth_um.toFixed(2)} µm`;
+    pill.classList.toggle("stop", !!L.can_stop);
+    $("#live-body").innerHTML =
+      `${L.slices} slices, ${L.depth_um.toFixed(2)} µm milled, ${L.rate_slices_per_min.toFixed(1)} slices/min<br>` +
+      `target: ±${(100 * L.target_rel_error).toFixed(0)} % (95 %) on each phase fraction` +
+      (L.phases || []).map(p => `<div class="ph"><span>${p.name}</span><span>${(100 * p.fraction).toFixed(1)} %</span>
+        <span class="${p.target_reached ? "ok" : "no"}">±${(100 * p.rel_error_95).toFixed(1)} %</span></div>`).join("") +
+      `<div style="margin-top:6px">${L.can_stop ? "Precision reached: milling can stop." : "Keep milling."}</div>`;
+    if (running && S.base && S.base.startsWith("live/")) {
+      const info = await (await api(`/api/volume/${S.base}/info`)).json();
+      if (info.shape[0] !== S.info[S.base].shape[0]) {
+        const follow = S.pos[0] >= S.info[S.base].shape[0] - 2;
+        S.info[S.base] = info;
+        if (S.ovl && S.ovl.startsWith("live/")) S.info[S.ovl] = await (await api(`/api/volume/${S.ovl}/info`)).json();
+        if (follow) S.pos[0] = info.shape[0] - 1;
+        S.sliceCache.clear(); for (const v of S.views) v.fit(); refreshSlices();
+      }
+    }
+  } catch (e) { /* server restarting */ }
+}
+setInterval(pollLive, 3000);
+
 // ------------------------------------------------------------------- wiring
 function setMode(m) {
   S.mode = m; $$("#modes button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
@@ -394,5 +424,5 @@ window.addEventListener("resize", () => { S.views.forEach(v => { v.cv.width = 0;
 (async function init() {
   S.views = $$(".view[data-axis]").map(el => new SliceView(el));
   try { S.gl = new VolumeRenderer($("#gl")); } catch (e) { $("#gl-msg").textContent = e.message; }
-  await loadProject(); await loadOps(); await loadWizard(); pollJobs(); renderClasses();
+  await loadProject(); await loadOps(); await loadWizard(); pollJobs(); renderClasses(); pollLive();
 })();

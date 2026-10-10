@@ -17,6 +17,7 @@
     <button data-mode="recipe">Recipe</button>
   </nav>
   <div id="project-name"></div>
+  <div id="live-pill" hidden></div>
   <div id="jobs-pill" title="Background jobs">idle</div>
 </header>
 
@@ -45,6 +46,11 @@
   </section>
 
   <aside id="right">
+    <section id="panel-live" hidden>
+      <h3>Live acquisition</h3>
+      <div id="live-body" class="info"></div>
+    </section>
+
     <section id="panel-display">
       <h3>Display</h3>
       <label>Base <select id="base-sel"></select></label>

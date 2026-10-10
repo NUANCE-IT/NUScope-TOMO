@@ -38,6 +38,7 @@ coordination 3.0).*
 | **Segmentation** | Otsu / multi-Otsu / hysteresis, **random-forest classifier trained from a few scribbles** (41 multi-scale features), majority smoothing, watershed separation of touching particles |
 | **Quantification** | per object: volume, surface area, equivalent diameter, sphericity, solidity, Feret, ellipsoid axes, elongation/flatness, orientation, nearest neighbour, intensity/element means. Per phase: volume fraction, specific surface, interface density, Euler number, percolation, geodesic tortuosity, continuous size distribution |
 | **Materials analyses** | triple-phase boundary length density (total / active), steady-state diffusion & conduction solver (D_eff/D₀, tortuosity factor, MacMullin number; Avizo XLab counterpart), pore- and particle-network model (throat/contact sizes, coordination numbers) |
+| **Beyond Avizo** | **data-health inspector** (per-slice SNR, sharpness, curtaining, drift, blank/duplicate slices, automatic slice-thickness check), **uncertainty on every number** (integral-range sampling error, ±1-voxel segmentation sensitivity, representative-volume size), **live acquisition mode** (`nuscope watch`: analyse while the FIB mills, tells you when precision is reached), **self-supervised Noise2Void** denoising and a **2.5D U-Net** trained from scribbles (Apple MPS / CUDA). See [docs/IDEAS.md](docs/IDEAS.md) |
 | **Chemistry (EDS)** | element-map stacks → registration to SE → 3D composition → unsupervised chemical phases (k-means / GMM / NMF) → composition per SE phase or object; forward simulator for validation |
 | **Visualization** | GPU renders (volume, phase surfaces with cut-away, objects coloured by any measurement), turntable MP4s, figure panels with true aspect and scale bars |
 | **Studio** | browser UI: **FIB-SEM Wizard** (guided pre-processing, like Avizo's DualBeam 3D Wizard), linked XY/XZ/YZ views, WebGL2 ray-marched 3D (DVR / MIP / iso / labels, clipping), scribble annotation → train → segment, every operation as a form, sortable measurement tables. All actions are auto-recorded as a recipe |
@@ -47,7 +48,7 @@ coordination 3.0).*
 
 ```bash
 uv venv --python 3.12 && source .venv/bin/activate
-uv pip install -e ".[dev]"
+uv pip install -e ".[dev]"          # add ",ai" for Noise2Void / U-Net (PyTorch)
 ```
 
 ## Use
@@ -56,6 +57,8 @@ uv pip install -e ".[dev]"
 nuscope run examples/fib_sem_335.yaml          # full pipeline on a slice-and-view stack
 nuscope studio projects/fib_sem_335            # open http://127.0.0.1:8765
 nuscope ops                                    # list operations and parameters
+nuscope watch /acq/folder -p projects/run --voxel 20 5 5 --model rf.pkl   # live mode
+python examples/beyond_avizo.py                # data health, Noise2Void, U-Net, RVE
 python examples/showcase.py                    # figures, renders and animation
 ```
 
@@ -82,11 +85,13 @@ and open it from any laptop. The browser only receives slices and a downsampled 
   or an ROI for very large data.
 - **Anisotropy everywhere.** FIB-SEM voxels are typically 5–10 nm in XY and 10–50 nm in
   Z. Distances, filters, surface areas and renders all use physical spacing.
-- **Validated against ground truth.** `pytest` runs 15 tests on synthetic phantoms.
+- **Validated against ground truth.** `pytest` runs 20 tests on synthetic phantoms.
   They cover drift recovery, stripe removal, sphere volume, area and sphericity (within 1–2 %),
   percolation and tortuosity, random-forest accuracy, watershed splitting, TPB length on a
   straight triple line, transport through a straight channel (τ = 1, D_eff = ε), the neck of two
-  fused spheres, EDS registration and phase recovery, the recipe engine and the Studio API.
+  fused spheres, slice-thickness detection, integral-range error prediction, Noise2Void,
+  U-Net, live ingestion, EDS registration and phase recovery, the recipe engine and the
+  Studio API.
 - **Honest alignment.** Correlation cannot separate stage drift from microstructure that is
   inclined to the milling axis, which is especially a problem with thick slices. `align`
   therefore detects stacks that are already registered and leaves them alone, and supports
