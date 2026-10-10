@@ -7,6 +7,7 @@ authors:
     alias: "rmsreis"
     affiliation: "NUANCE Center, Northwestern University"
 version: 0.2.0
+license: MIT
 date-released: 2026-10-09
 repository-code: "https://github.com/NUANCE-IT/NUScope-TOMO"
 keywords: [FIB-SEM, tomography, segmentation, EDS, microscopy]

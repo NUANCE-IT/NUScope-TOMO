@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,8 @@ name = "nuscope-tomo"
 version = "0.2.0"
 description = "Open FIB-SEM slice-and-view tomography: alignment, artifact correction, ML segmentation, 3D quantification and correlative EDS chemistry, with a browser-based Studio."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [{ name = "Roberto dos Reis", email = "robertomsreis@gmail.com" }]
 maintainers = [{ name = "Roberto dos Reis (@rmsreis)" }]

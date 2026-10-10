@@ -16,9 +16,9 @@ reproducible YAML recipes and in a browser-based UI.
   <img src="docs/images/10_particles_3d.jpg" width="49%" alt="Particles coloured by size">
 </p>
 
-*FIB-SEM sample 335 (812 slices) processed by `examples/fib_sem_335.yaml` in under 5 minutes:
-dark phase with a grey-value cut-away (left) and 1 934 separated particles coloured by equivalent
-diameter (right).*
+*FIB-SEM sample 335 (812 slices, 20 × 5 × 5 nm voxels) processed by `examples/fib_sem_335.yaml`
+in under 5 minutes: dark phase with a grey-value cut-away (left) and 1 414 separated particles
+coloured by equivalent diameter (right).*
 
 | Stage | What you get |
 |---|---|
@@ -98,6 +98,10 @@ tests/         ground-truth tests
 
 See [PLAN.md](PLAN.md) for the roadmap: deep-learning segmentation, Noise2Void,
 native `.h5oina` / `.bcf` EDS readers.
+
+## Licence
+
+MIT, see [LICENSE](LICENSE). Copyright (c) 2026 Roberto dos Reis (@rmsreis).
 
 ## Citation
 

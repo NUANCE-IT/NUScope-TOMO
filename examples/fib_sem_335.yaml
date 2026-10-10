@@ -1,10 +1,10 @@
-# NuScope-TOMO recipe — FIB-SEM slice-and-view, sample 335 (SE, 50 x 5 x 5 nm voxels)
+# NuScope-TOMO recipe — FIB-SEM slice-and-view, sample 335 (SE, 20 x 5 x 5 nm voxels)
 # Run:  nuscope run examples/fib_sem_335.yaml
 name: fib_sem_335
 project: projects/fib_sem_335/recipe_run
 input:
   zarr: projects/fib_sem_335/raw.zarr
-  voxel_size_nm: [50, 5, 5]
+  voxel_size_nm: [20, 5, 5]      # slice thickness 20 nm (acquisition), pixel 5 nm
 steps:
   # ---- pre-processing ---------------------------------------------------
   - op: preprocess.auto_crop            # remove Pt cap, trench walls, padding
@@ -17,7 +17,7 @@ steps:
   - op: preprocess.normalize_slices     # slice-to-slice brightness flicker
     id: corrected
     save: true
-  - op: preprocess.bin                  # 10 nm XY pixels (Z is 50 nm anyway)
+  - op: preprocess.bin                  # 10 nm XY pixels (Z is 20 nm)
     params: {factors: [1, 2, 2]}
   - op: preprocess.denoise_nlm
     id: denoised

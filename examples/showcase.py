@@ -78,8 +78,8 @@ xz = {"cropped raw": crop.get_slice(1, 560)[:300].T,
 with plt.rc_context(STYLE):
     fig, axes = plt.subplots(1, 2, figsize=(15, 4.2))
     for a, (k, im) in zip(axes, xz.items()):
-        # rows = x (5 nm), cols = z (50 nm): true physical aspect
-        a.imshow(im, cmap="gray", vmin=60, vmax=190, aspect=5 / 50, interpolation="lanczos")
+        # rows = x pixels, cols = z slices: true physical aspect
+        a.imshow(im, cmap="gray", vmin=60, vmax=190, aspect=corrected.voxel_size.x / corrected.voxel_size.z, interpolation="lanczos")
         a.set_title(f"XZ reslice, {k}  —  Z (milling) →", loc="left")
         a.set_xticks([]), a.set_yticks([])
     fig.tight_layout()
