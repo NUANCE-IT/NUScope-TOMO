@@ -51,3 +51,16 @@ steps:
   - op: analyze.objects
     id: particles_measured
     inputs: {labels: particles, intensity: denoised}
+  # ---- materials analyses (Avizo XLab / PNM / TPB counterparts) ------------
+  - op: analyze.tpb                     # triple-phase junction lines
+    id: tpb
+    inputs: {labels: phases}
+    params: {phases: [2, 3, 4]}
+  - op: analyze.transport               # diffusion/conduction: D_eff/D0, tortuosity factor
+    id: transport
+    inputs: {labels: phases}
+    params: {phases: [2, 3, 4], max_voxels: 25000000}   # ~30 nm grid, converged within ~5 %
+  - op: analyze.network                 # particle contact network (coordination numbers)
+    id: contacts
+    inputs: {labels: particles}
+    params: {min_contact_um2: 0.002}

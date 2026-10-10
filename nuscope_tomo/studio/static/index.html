@@ -10,6 +10,7 @@
 <header id="top">
   <div class="brand"><span class="logo">◈</span> NuScope <b>Studio</b></div>
   <nav id="modes">
+    <button data-mode="wizard">FIB-SEM Wizard</button>
     <button data-mode="explore" class="on">Explore</button>
     <button data-mode="segment">Annotate &amp; Segment</button>
     <button data-mode="analyze">Analyze</button>
@@ -73,6 +74,15 @@
       <label class="chk"><input id="cut-faces" type="checkbox" checked> grey values on cut faces</label>
       <label class="chk"><input id="autorotate" type="checkbox"> auto-rotate</label>
       <button id="snap">Save PNG</button>
+    </section>
+
+    <section id="panel-wizard" hidden>
+      <h3>FIB-SEM Wizard</h3>
+      <p class="hint">Guided pre-processing of the base volume. Untick steps you don't need;
+        parameters are editable. The result is saved to the project and recorded in the recipe.</p>
+      <ol id="wiz-steps"></ol>
+      <button id="wiz-run" class="primary">Run wizard on base volume</button>
+      <div id="wiz-stat" class="info"></div>
     </section>
 
     <section id="panel-segment" hidden>

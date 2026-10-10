@@ -1,5 +1,5 @@
 """Phase-level microstructure metrics (materials-science quantities that
-Amira exposes through separate modules): volume fractions, specific surface
+Avizo exposes through separate modules): volume fractions, specific surface
 area, interfacial areas, connectivity/percolation, geometric tortuosity and
 continuous size distributions (local thickness)."""
 from __future__ import annotations

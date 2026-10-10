@@ -4,7 +4,7 @@ Scenes are in physical units (µm). Typical figures:
 
 * ``render_volume``   – direct volume rendering of grey values
 * ``render_phases``   – smooth iso-surfaces of segmented classes over an
-  orthoslice cut-away (the classic Amira figure)
+  orthoslice cut-away (the classic Avizo figure)
 * ``render_objects``  – every separated object coloured by a measurement
 * ``turntable``       – MP4/GIF orbit around any scene
 """
@@ -252,6 +252,73 @@ def render_objects(objects: Volume, values: Optional[dict] = None, cmap: str = "
     return _finish(p, g.bounds, out, camera)
 
 
+def render_network(nodes, links, context: Optional[Volume] = None, color_by: str = "coordination",
+                   cmap: str = "plasma", size_col: str = "eq_diameter_nm", size_scale: float = 0.45,
+                   out: Optional[str] = None, size=(1600, 1200), camera: Optional[dict] = None,
+                   title: str = "", label: str = ""):
+    """Ball-and-stick network: spheres at region centroids (diameter ∝ ``size_col``),
+    tubes for links, both coloured by a node property."""
+    pts = nodes[["x_um", "y_um", "z_um"]].to_numpy()
+    p = _plotter(size)
+    cloud = pv.PolyData(pts)
+    cloud.point_data["value"] = nodes[color_by].to_numpy().astype(np.float32)
+    cloud.point_data["radius"] = (nodes[size_col].to_numpy() / 1e3 * size_scale).astype(np.float32)
+    balls = cloud.glyph(scale="radius", orient=False, geom=pv.Sphere(radius=1.0, theta_resolution=16,
+                                                                     phi_resolution=16))
+    vals = cloud.point_data["value"]
+    clim = (float(np.nanmin(vals)), float(np.nanpercentile(vals, 99)))
+    if len(links):
+        a = links["a"].to_numpy() - 1
+        b = links["b"].to_numpy() - 1
+        lines = np.column_stack([np.full(len(a), 2), a, b]).ravel()
+        net = pv.PolyData(pts, lines=lines)
+        net.point_data["value"] = vals
+        p.add_mesh(net.tube(radius=0.018), scalars="value", cmap=cmap, clim=clim,
+                   show_scalar_bar=False, smooth_shading=True, opacity=0.9)
+    p.add_mesh(balls, scalars="value", cmap=cmap, clim=clim, smooth_shading=True, specular=0.4,
+               scalar_bar_args={"title": label or color_by, "color": "white", "vertical": True,
+                                "position_x": 0.88, "position_y": 0.2, "height": 0.6,
+                                "title_font_size": 22, "label_font_size": 18, "fmt": "%.0f",
+                                "n_labels": 5})
+    if context is not None:
+        g = to_grid(context)
+        bounds = g.bounds
+    else:
+        lo, hi = pts.min(0), pts.max(0)
+        bounds = (lo[0], hi[0], lo[1], hi[1], lo[2], hi[2])
+    if title:
+        p.add_text(title, font_size=12, color="white", position="upper_left")
+    return _finish(p, bounds, out, camera)
+
+
+def render_field(field: Volume, mask: Volume, cmap: str = "coolwarm", label: str = "",
+                 out: Optional[str] = None, size=(1600, 1200), camera: Optional[dict] = None,
+                 title: str = "", context: Optional[Volume] = None):
+    """Phase surface coloured by a scalar field defined inside it (e.g. the
+    steady-state concentration of a transport simulation)."""
+    surf = mask_surface(mask.numpy() > 0, mask.voxel_size.as_tuple(), smooth=1.0, decimate=0.3)
+    f = field.numpy()
+    inside = np.isfinite(f)
+    # extend values outward (nearest inside voxel) so surface samples never see the outside
+    _, idx = ndi.distance_transform_edt(~inside, return_indices=True)
+    f = f[tuple(idx)]
+    g = to_grid(field.derive(f.astype(np.float32)), "field")
+    probe = surf.copy()
+    b = np.array(g.bounds).reshape(3, 2)
+    probe.points = np.clip(probe.points, b[:, 0] + 1e-6, b[:, 1] - 1e-6)  # stay inside the grid
+    surf.point_data["field"] = probe.sample(g).point_data["field"]
+    sampled = surf
+    p = _plotter(size)
+    p.add_mesh(sampled, scalars="field", cmap=cmap, clim=(0, 1), smooth_shading=True,
+               specular=0.3, scalar_bar_args={"title": label, "color": "white", "vertical": True,
+                                              "position_x": 0.88, "position_y": 0.2,
+                                              "height": 0.6, "title_font_size": 22,
+                                              "label_font_size": 18, "fmt": "%.1f"})
+    if title:
+        p.add_text(title, font_size=12, color="white", position="upper_left")
+    return _finish(p, g.bounds, out, camera)
+
+
 def turntable(build: Callable[[], pv.Plotter], out: str, n_frames: int = 180,
               fps: int = 30, elevation_wobble: float = 8.0) -> str:
     """Orbit 360° around the scene produced by ``build()`` and write MP4/GIF."""
@@ -271,4 +338,4 @@ def turntable(build: Callable[[], pv.Plotter], out: str, n_frames: int = 180,
 
 
 __all__ = ["to_grid", "mask_surface", "render_volume", "phase_surfaces", "render_phases",
-           "render_objects", "turntable", "PALETTE"]
+           "render_objects", "render_network", "render_field", "turntable", "PALETTE"]

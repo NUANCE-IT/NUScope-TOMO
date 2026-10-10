@@ -1,6 +1,6 @@
 """Machine-learning segmentation from sparse annotations ("scribbles").
 
-The Amira/ilastik-style workflow: the user paints a few strokes per class on
+The Avizo/ilastik-style workflow: the user paints a few strokes per class on
 a handful of slices, a random forest learns from a bank of multi-scale image
 features, then every voxel of the stack is classified out-of-core, slice by
 slice. Feature computation is 2D per FIB slice (the XY resolution is usually

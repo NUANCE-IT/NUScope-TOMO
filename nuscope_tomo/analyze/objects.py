@@ -1,4 +1,4 @@
-"""Per-object 3D morphometry in physical units (Amira "Label Analysis").
+"""Per-object 3D morphometry in physical units (Avizo "Label Analysis").
 
 All lengths are reported in nm (columns suffixed ``_nm``), volumes in nm³
 and µm³, areas in nm². Anisotropic voxels are accounted for everywhere.

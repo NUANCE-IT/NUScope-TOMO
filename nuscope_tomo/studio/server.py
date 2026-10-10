@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import json
+import shutil
 import threading
 import time
 import traceback
@@ -28,6 +29,24 @@ from ..core.registry import get_op, list_ops
 from ..core.volume import META_FILE, Volume
 
 STATIC = Path(__file__).parent / "static"
+
+# Guided pre-processing for slice-and-view stacks (cf. Avizo "DualBeam 3D Wizard").
+WIZARD_STEPS = [
+    {"op": "preprocess.auto_crop", "title": "Find block face",
+     "help": "Remove Pt cap, trench walls and padding", "params": {"margin": 20}},
+    {"op": "preprocess.align", "title": "Align slices",
+     "help": "Sub-pixel drift correction; skipped if already registered", "params": {}},
+    {"op": "preprocess.destripe", "title": "Remove curtaining",
+     "help": "Wavelet–FFT stripe filter", "params": {"level": 5, "sigma": 3.0}},
+    {"op": "preprocess.flatten_shading", "title": "Flatten shading",
+     "help": "Divide out the slow illumination gradient", "params": {}},
+    {"op": "preprocess.normalize_slices", "title": "Even out slice brightness",
+     "help": "Match each slice to a running median", "params": {"window": 15}},
+    {"op": "preprocess.bin", "title": "Bin XY", "help": "Average 2×2 pixels",
+     "params": {"factors": [1, 2, 2]}},
+    {"op": "preprocess.denoise_nlm", "title": "Denoise", "help": "Non-local means per slice",
+     "params": {"h": 0.8}},
+]
 
 
 class Project:
@@ -211,6 +230,51 @@ def create_app(project_dir: str | Path) -> FastAPI:
                 jobs[jid].update(status="done", outputs=made)
             except Exception as e:  # surfaced to the UI
                 jobs[jid].update(status="error", error=f"{e}", trace=traceback.format_exc())
+            jobs[jid]["seconds"] = round(time.time() - jobs[jid]["t0"], 2)
+
+        threading.Thread(target=work, daemon=True).start()
+        return {"job": jid}
+
+    @app.get("/api/wizard/steps")
+    def wizard_steps():
+        return WIZARD_STEPS
+
+    @app.post("/api/wizard")
+    def wizard(req: dict = Body(...)):
+        """Guided FIB-SEM pre-processing: {"volume": id, "steps": [{op, params, enabled}]}."""
+        jid = uuid.uuid4().hex[:8]
+        steps = [s for s in req.get("steps", WIZARD_STEPS) if s.get("enabled", True)]
+        jobs[jid] = {"id": jid, "op": "FIB-SEM wizard", "status": "running", "t0": time.time(),
+                     "log": [{"op": s["op"], "title": s.get("title", s["op"]), "status": "pending"}
+                             for s in steps]}
+
+        def work():
+            try:
+                vol = proj.volume(req["volume"])
+                for i, st in enumerate(steps):
+                    entry = jobs[jid]["log"][i]
+                    entry["status"] = "running"
+                    t = time.time()
+                    out = get_op(st["op"]).func(vol, **st.get("params", {}))
+                    vol = out["volume"] if isinstance(out, dict) else out
+                    if st["op"] in ("preprocess.destripe", "preprocess.normalize_slices"):
+                        # persist after expensive lazy stages so later steps don't recompute
+                        vol = vol.to_zarr(proj.root / "studio" / f"_wizard_{jid}_{i}.zarr")
+                        _open.cache_clear()
+                    entry.update(status="done", seconds=round(time.time() - t, 1),
+                                 shape=list(vol.shape),
+                                 note=str(vol.meta.get("aligned", "")) if st["op"] ==
+                                 "preprocess.align" else "")
+                    _log_recipe(proj.root, {"op": st["op"], "inputs": {"volume": req["volume"]},
+                                            "params": st.get("params", {})})
+                rid = f"studio/wizard_{jid}"
+                vol.to_zarr(proj.root / f"{rid}.zarr")
+                _open.cache_clear()
+                for tmp in (proj.root / "studio").glob(f"_wizard_{jid}_*.zarr"):
+                    shutil.rmtree(tmp, ignore_errors=True)
+                jobs[jid].update(status="done", outputs=[rid])
+            except Exception as e:
+                jobs[jid].update(status="error", error=str(e), trace=traceback.format_exc())
             jobs[jid]["seconds"] = round(time.time() - jobs[jid]["t0"], 2)
 
         threading.Thread(target=work, daemon=True).start()

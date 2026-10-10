@@ -1,51 +1,57 @@
 # NuScope-TOMO — plan
 
-Goal: an open, scriptable, modern alternative to the Thermo Fisher Amira FIB-SEM
-workflow (import → pre-processing → segmentation → quantification →
-visualization/animation, driven by reproducible recipes), plus correlative
-**chemical (EDS) tomography** from FIB slice-and-view.
+Goal: an open, scriptable, modern alternative to **Thermo Fisher Avizo** for FIB-SEM
+slice-and-view in materials science (import → pre-processing → AI segmentation →
+quantification → materials analyses → presentation, driven by reproducible recipes), with
+correlative chemistry built in.
 
-## Feature map vs. Amira (FIB-SEM datasheet)
+Reference: *Avizo Software for FIB-SEM* datasheet (DTAS-15561042, 2026) and the Avizo
+package extensions (XLab, pore network modelling, XFiber, XDVC).
 
-| Amira workflow stage | NuScope-TOMO module | Status |
+## Feature map vs. Avizo for FIB-SEM
+
+| Avizo capability | NuScope-TOMO | Status |
 |---|---|---|
-| Data import (large stacks, microscopy formats) | `io.stack`, `io.metadata` (TIFF folders, multipage TIFF, TFS/FEI + AZtec tags), OME-Zarr multiscale store | v0.2 |
-| Stack alignment / 3D registration | `preprocess.align` (sub-pixel phase correlation, robust drift model, outlier rejection) | v0.2 |
-| Curtaining / artifact correction | `preprocess.destripe` (wavelet–FFT destriping), `preprocess.shading` (illumination flattening), tilt/shear correction | v0.2 |
-| Noise reduction (AI denoise in Amira) | `preprocess.denoise` (NLM, bilateral, TV, anisotropic 3D); self-supervised Noise2Void hook | v0.2 / v0.3 |
-| AI segmentation with minimal annotation | `segment.classifier` (multi-scale-feature random forest from sparse scribbles, multi-class), `segment.threshold` (Otsu, multi-Otsu, hysteresis), `segment.separate` (watershed) | v0.2 |
-| 200+ measurements | `analyze.labels` (per-object 3D morphometrics), `analyze.phase` (volume fraction, specific surface, connectivity, tortuosity, local thickness / pore-size distribution, spatial statistics) | v0.2 |
-| Visualization & animation | `viz.render` (GPU volume + surface rendering, ortho slices), `viz.animate` (turntable / fly-through MP4), **NuScope Studio** (browser UI) | v0.2 |
-| Recipe-based automation | `recipe` (YAML pipelines, every step logged with parameters + provenance hash), `nuscope` CLI | v0.2 |
-| — (beyond Amira) | **EDS chemical tomography**: element-map stacks registered to SE, 3D element volumes, unsupervised phase mapping (NMF / k-means), composition per segmented object | v0.2 |
+| Large datasets, EM / spectroscopy formats | `io.stack` (TIFF folders, multipage TIFF, Thermo Fisher pixel-size tags) → chunked Zarr v3 | done |
+| Stack alignment for drift | `preprocess.align`: sub-pixel phase correlation, multi-baseline least squares, registered-stack detection, fiducial ROI | done |
+| Curtaining / acquisition-artifact correction | `preprocess.destripe`, `flatten_shading`, `normalize_slices`, `auto_crop`, `tilt_correct` | done |
+| DualBeam 3D Wizard (guided pre-processing) | **Studio FIB-SEM Wizard**: 7 editable steps, per-step progress, recorded as recipe | done |
+| Multi-dataset co-registration, mismatched fields of view | EDS→SE registration with FOV mapping (`chem.register_to_se`) | done (2D per slice) |
+| | General 3D rigid/affine registration of a second volume (BSE + SE, ToF-SIMS) | next |
+| AI denoising (pre-trained / custom) | NLM, TV, anisotropic 3D Gaussian | done |
+| | Noise2Void self-supervised denoiser (PyTorch, MPS/CUDA) | next |
+| AI segmentation with minimal annotation | Scribble-trained random forest (41 features), painted in Studio | done |
+| | U-Net trained from Studio annotations; pre-trained particle detector | next |
+| Near-instant AI-assisted object selection | click-to-select object in Studio (region grow on the RF probability map) | next |
+| Multi-class segmentation (cathode/binder, shale/pore, coatings) | multi-class RF + majority smoothing | done |
+| 200+ measurements, custom measurements | 22 per-object measures, phase metrics, any pandas expression on the tables | done |
+| Triple-phase boundaries | `analyze.tpb`: voxel-edge TPB length density, active/isolated | done |
+| Pore network modelling (XPNM) | `analyze.network`: regions → nodes, shared faces → throats/contacts, coordination | done |
+| Physical property simulation (XLab) | `analyze.transport`: diffusion/conduction, D_eff/D₀, tortuosity factor, MacMullin number | done |
+| | Absolute permeability (Stokes / lattice Boltzmann) | next |
+| Fibre tracing (XFiber) | centreline tracing, orientation tensor | later |
+| Digital volume correlation (XDVC) | | later |
+| Crack density per secondary particle (battery) | per-object containment statistics | next |
+| Visualisation, animation, reports | GPU renders, cut-aways, property-coloured objects, networks, fields, turntables, HTML report | done |
+| Recipes, reproducibility | YAML recipes, provenance log, Studio actions auto-recorded | done |
+| — (beyond Avizo) | Correlative EDS chemical phase mapping with a forward simulator; browser UI next to the data; open formats; ground-truth test suite | done |
 
-## What "more modern than Amira" means here
+## What "more modern than Avizo" means here
 
-1. **Browser-based Studio** — runs locally or on a lab GPU workstation/HPC node and
-   is opened from any laptop; no licence dongle, no install on the viewing machine.
-2. **Everything is code** — every GUI action maps to a recipe step; the recipe is
-   saved in the project, so results are reproducible and diffable in git.
-3. **Out-of-core by default** — chunked Zarr v3 + Dask, multiscale pyramids, so
-   stacks larger than RAM work end to end.
-4. **Python API, notebooks, CLI** — the same engine from scripts, Jupyter, or the UI.
-5. **Open formats** — OME-Zarr, TIFF, CSV/Parquet, STL/PLY/glTF; no proprietary project format.
-6. **Correlative chemistry built in**, not a separate product.
+1. **Browser-based Studio**: runs on a lab workstation or HPC node and opens from any
+   laptop. No licence dongle and nothing to install on the viewing machine.
+2. **Everything is code**: every GUI action maps to a recipe step saved in the project,
+   so results are reproducible and diffable in git.
+3. **Out-of-core by default**: chunked Zarr v3 + Dask, so stacks larger than RAM work.
+4. **Python API, notebooks, CLI**: the same engine from scripts, Jupyter or the UI.
+5. **Open formats**: OME-Zarr, TIFF, CSV, STL/PLY, MP4. No proprietary project files.
+6. **Validated**: each analysis has a ground-truth test (analytical geometry or forward model).
 
-## Phases
+## Next milestones
 
-1. Foundation — package layout, `Volume`, project + provenance, recipe engine, CLI.
-2. Pre-processing — ROI auto-crop, alignment, destriping, shading, denoising, resampling.
-3. Segmentation — thresholds, scribble-trained random forest, watershed separation.
-4. Quantification — per-object and phase-level metrics, CSV export.
-5. Chemistry — EDS stack import, registration, 3D element maps, phase clustering.
-6. Visualization — publication renders, animations.
-7. Studio — FastAPI backend + WebGL2 volume renderer and slice viewer.
-8. Validation — tests on synthetic phantoms with known ground truth, then the
-   real dataset `projects/fib_sem_335`, results gallery.
-
-## Later (v0.3+)
-
-- Deep-learning segmentation (U-Net, PyTorch/MPS) trained from Studio annotations.
-- Noise2Void self-supervised denoising.
-- Direct reading of Oxford `.h5oina` / Bruker `.bcf` EDS hypermaps.
-- Multi-user annotation in Studio.
+1. Deep learning: U-Net segmentation and Noise2Void denoising (PyTorch, Apple MPS / CUDA),
+   trained from Studio annotations.
+2. 3D multi-volume registration (SE/BSE, ToF-SIMS, EBSD) with mismatched fields of view.
+3. Native EDS readers: Oxford `.h5oina`, Bruker `.bcf`.
+4. Permeability (lattice Boltzmann) and electrochemical properties for battery cathodes.
+5. Studio: click-to-select objects, measurement filters linked to 3D highlighting, report export.

@@ -38,7 +38,8 @@ async function loadProject() {
   list($("#tables"), p.tables, showTable);
   list($("#media"), p.media, m => window.open(`/api/media/${m}`, "_blank"));
   if (!S.base) { const first = p.volumes.find(v => v.kind !== "labels"); if (first) await setBase(first.id); }
-  if (!S.ovl) { const l = p.volumes.find(v => v.kind === "labels" && !v.id.includes("object")); if (l) await setOverlay(l.id); }
+  if (!S.ovl && !S.ovlChosen) { S.ovlChosen = true;
+    const l = p.volumes.find(v => v.kind === "labels" && !v.id.includes("object")); if (l) await setOverlay(l.id); }
 }
 
 async function setBase(id) {
@@ -50,7 +51,7 @@ async function setBase(id) {
   refreshSlices(); load3D(); loadProject();
 }
 async function setOverlay(id) {
-  S.ovl = id || null; S.sliceCache.clear();
+  S.ovl = id || null; S.ovlChosen = true; S.sliceCache.clear();
   if (id) S.info[id] = await (await api(`/api/volume/${id}/info`)).json();
   refreshSlices(); load3D(); loadProject();
   if (id) labelLegend(S.info[id]);
@@ -317,11 +318,52 @@ $("#train").onclick = async () => {
   runOp("segment.random_forest", { volume: S.base }, { scribbles: "@annotations", classes: S.cls.length, class_names: names }, true);
 };
 
+// ------------------------------------------------------------------- wizard
+let WIZ = [];
+async function loadWizard() {
+  WIZ = (await (await api("/api/wizard/steps")).json()).map(s => ({ ...s, enabled: true }));
+  renderWizard();
+}
+function renderWizard(log) {
+  $("#wiz-steps").innerHTML = WIZ.map((s, i) => {
+    const l = log && log.find(e => e.op === s.op), st = !s.enabled ? "off" : l ? l.status : "";
+    const info = l ? (l.status === "done" ? `✓ ${l.seconds}s${l.note ? " · " + l.note : ""}` : l.status === "running" ? "running…" : "") : "";
+    return `<li class="${st}"><input type="checkbox" data-w="${i}" ${s.enabled ? "checked" : ""} aria-label="enable ${s.title}">
+      <span class="t">${s.title}</span><span class="st">${info}</span>
+      <span class="h">${s.help}</span>
+      ${Object.keys(s.params).length ? `<input type="text" data-wp="${i}" value='${JSON.stringify(s.params)}' aria-label="${s.title} parameters">` : ""}</li>`;
+  }).join("");
+  $$("#wiz-steps [data-w]").forEach(c => c.onchange = () => { WIZ[+c.dataset.w].enabled = c.checked; renderWizard(log); });
+  $$("#wiz-steps [data-wp]").forEach(t => t.onchange = () => {
+    try { WIZ[+t.dataset.wp].params = JSON.parse(t.value); t.style.borderColor = ""; }
+    catch { t.style.borderColor = "var(--err)"; } });
+}
+$("#wiz-run").onclick = async () => {
+  if (!S.base) return;
+  const r = await (await api("/api/wizard", { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ volume: S.base, steps: WIZ }) })).json();
+  $("#wiz-stat").textContent = `Running on ${S.base}…`;
+  const t0 = Date.now();
+  while (true) {
+    const job = (await (await api("/api/jobs")).json()).find(j => j.id === r.job);
+    renderWizard(job.log);
+    if (job.status !== "running") {
+      $("#wiz-stat").textContent = job.status === "done"
+        ? `Done in ${job.seconds}s → ${job.outputs[0]}` : `Failed: ${job.error}`;
+      if (job.status === "done") { await loadProject(); await setBase(job.outputs[0]); }
+      break;
+    }
+    $("#wiz-stat").textContent = `Running on ${S.base}… ${((Date.now() - t0) / 1000) | 0}s`;
+    await new Promise(res => setTimeout(res, 1000));
+  }
+};
+
 // ------------------------------------------------------------------- wiring
 function setMode(m) {
   S.mode = m; $$("#modes button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
   $("#panel-segment").hidden = m !== "segment"; $("#panel-recipe").hidden = m !== "recipe";
-  $("#panel-3d").hidden = m === "recipe";
+  $("#panel-wizard").hidden = m !== "wizard"; $("#panel-ops").hidden = m === "wizard";
+  $("#panel-3d").hidden = m === "recipe" || m === "wizard";
   if (m === "recipe") api("/api/recipe").then(r => r.text()).then(t => $("#recipe-text").textContent = t);
   if (m === "analyze") { $("#drawer").classList.add("open");
     const t = S.project.tables.find(t => t.includes("objects")) || S.project.tables[0]; if (t) showTable(t); }
@@ -352,5 +394,5 @@ window.addEventListener("resize", () => { S.views.forEach(v => { v.cv.width = 0;
 (async function init() {
   S.views = $$(".view[data-axis]").map(el => new SliceView(el));
   try { S.gl = new VolumeRenderer($("#gl")); } catch (e) { $("#gl-msg").textContent = e.message; }
-  await loadProject(); await loadOps(); pollJobs(); renderClasses();
+  await loadProject(); await loadOps(); await loadWizard(); pollJobs(); renderClasses();
 })();

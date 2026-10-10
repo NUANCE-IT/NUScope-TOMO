@@ -103,3 +103,18 @@ footer a { color: #9cc9ff; text-decoration: none; }
   #layout { grid-template-columns: 1fr; grid-template-rows: auto 70vh auto; overflow-y: auto; }
   body { overflow: auto; }
 }
+
+#wiz-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; counter-reset: st; }
+#wiz-steps li { display: grid; grid-template-columns: 16px 18px 1fr auto; gap: 3px 8px;
+  align-items: center; padding: 7px 8px; border-radius: 8px; background: var(--panel2);
+  border: 1px solid var(--line); counter-increment: st; }
+#wiz-steps li::before { content: counter(st); font-size: 11px; color: var(--dim); grid-column: 1; }
+#wiz-steps li > input[type=checkbox] { grid-column: 2; margin: 0; }
+#wiz-steps .t { font-weight: 600; grid-column: 3; }
+#wiz-steps .st { font-size: 11px; color: var(--dim); grid-column: 4; text-align: right; }
+#wiz-steps .h { grid-column: 3 / 5; color: var(--dim); font-size: 11.5px; }
+#wiz-steps input[type=text] { grid-column: 3 / 5; font: 11.5px ui-monospace, Menlo, monospace; }
+#wiz-steps li.running { border-color: var(--accent2); }
+#wiz-steps li.running .st { color: var(--accent2); }
+#wiz-steps li.done .st { color: var(--ok); }
+#wiz-steps li.off { opacity: .45; }

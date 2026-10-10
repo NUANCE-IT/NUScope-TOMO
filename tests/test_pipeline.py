@@ -178,3 +178,40 @@ def test_studio_api(tmp_path):
     hdr = json.loads(b[4:4 + n])
     assert len(b) - 4 - n == int(np.prod(hdr["shape"]))
     assert any(o["name"] == "segment.random_forest" for o in c.get("/api/ops").json())
+
+
+def test_triple_phase_boundary_straight_line():
+    from nuscope_tomo.analyze import triple_phase_boundary
+    lab = np.zeros((30, 40, 40), np.uint8)
+    lab[:, :, :20], lab[:, :20, 20:], lab[:, 20:, 20:] = 1, 2, 3
+    stats, _ = triple_phase_boundary(lab, (20, 10, 10), (1, 2, 3))
+    assert stats["tpb_length_um"] == pytest.approx(0.6)
+    assert stats["active_fraction"] == pytest.approx(1.0)
+    lab[:, 30:35, 5:10] = 3  # an isolated inclusion of phase 3 inside phase 1 adds no TPB
+    assert triple_phase_boundary(lab, (20, 10, 10), (1, 2, 3))[0]["tpb_length_um"] == \
+        pytest.approx(0.6)
+
+
+def test_transport_channel_and_block():
+    from nuscope_tomo.analyze import effective_transport
+    m = np.zeros((20, 30, 30), bool)
+    m[:, 10:20, 10:20] = True
+    r = effective_transport(m, (10, 10, 10), axis=0)
+    assert r["D_eff_ratio"] == pytest.approx(r["porosity"], rel=1e-6)
+    assert r["tortuosity_factor"] == pytest.approx(1.0, rel=1e-6)
+    assert effective_transport(m, (10, 10, 10), axis=2)["D_eff_ratio"] == 0.0  # no path in x
+    assert effective_transport(np.ones((12, 20, 20), bool), (20, 10, 10), 1)["D_eff_ratio"] == \
+        pytest.approx(1.0)
+
+
+def test_network_two_spheres_neck():
+    from nuscope_tomo.analyze import extract_network
+    z, y, x = np.ogrid[:40, :80, :120]
+    m = (((z - 20) ** 2 + (y - 40) ** 2 + (x - 40) ** 2) <= 15 ** 2) | \
+        (((z - 20) ** 2 + (y - 40) ** 2 + (x - 66) ** 2) <= 15 ** 2)
+    lab = separate(Volume(m.astype(np.uint8), VoxelSize(10, 10, 10)), min_distance_nm=150,
+                   h_nm=10).numpy()
+    nodes, links = extract_network(lab, (10, 10, 10))
+    assert list(nodes.coordination) == [1, 1] and len(links) == 1
+    neck = 2 * np.sqrt(150 ** 2 - 130 ** 2)  # analytical neck diameter (nm)
+    assert links.throat_diameter_nm[0] == pytest.approx(neck, abs=15)

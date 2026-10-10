@@ -23,7 +23,9 @@ from nuscope_tomo import Volume  # noqa: E402
 from nuscope_tomo.chem import (chemical_phases, composition, composition_by_label,  # noqa: E402
                                denoise_counts, element_rgb, register_to_se, simulate_eds)
 from nuscope_tomo.preprocess import auto_crop  # noqa: E402
-from nuscope_tomo.viz import PALETTE, render_objects, render_phases, render_volume, turntable  # noqa: E402
+from nuscope_tomo.analyze import effective_transport  # noqa: E402
+from nuscope_tomo.viz import (PALETTE, render_field, render_network, render_objects,  # noqa: E402
+                              render_phases, render_volume, turntable)
 from nuscope_tomo.viz.figures import STYLE, compare, label_cmap, ortho_views  # noqa: E402
 
 PROJ = Path(sys.argv[1] if len(sys.argv) > 1 else "projects/fib_sem_335/recipe_run")
@@ -223,5 +225,66 @@ with plt.rc_context(STYLE):
     fig.tight_layout()
     fig.savefig(OUT / "12_eds_simulated.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
+
+# 9 ── materials analyses: transport, TPB, contact network ------------------------
+step("materials analyses")
+tr = pd.read_csv(T / "transport.csv")
+tp = pd.read_csv(T / "tpb.table.csv").iloc[0]
+nodes = pd.read_csv(T / "contacts.nodes.csv")
+links = pd.read_csv(T / "contacts.links.csv")
+with plt.rc_context(STYLE):
+    fig, ax = plt.subplots(1, 3, figsize=(19, 4.6))
+    w = 0.26
+    for i, axn in enumerate("zyx"):
+        d = tr[tr["axis"] == axn]
+        ax[0].bar(np.arange(len(d)) + (i - 1) * w, d["tortuosity_factor"], w,
+                  label=f"{axn}" + (" (milling)" if axn == "z" else ""), color=PALETTE[i + 4])
+    names3 = tr.drop_duplicates("phase")["name"].tolist()
+    ax[0].set_xticks(range(len(names3)), names3)
+    ax[0].set_ylabel("tortuosity factor τ = ε / (D_eff/D₀)"), ax[0].set_yscale("log")
+    ax[0].set_title("Transport simulation per phase and direction", loc="left")
+    ax[0].legend(frameon=False, title="axis")
+    for i, axn in enumerate("zyx"):
+        d = tr[tr["axis"] == axn]
+        ax[1].scatter(d["porosity"], d["D_eff_ratio"], s=60, color=PALETTE[i + 4], label=axn)
+    e = np.linspace(0.01, 0.7, 50)
+    ax[1].plot(e, e ** 1.5, ls="--", color="#8a94a6", lw=1, label="Bruggeman ε^1.5")
+    ax[1].set_xlabel("volume fraction ε"), ax[1].set_ylabel("D_eff / D₀")
+    ax[1].set_title("Effective diffusivity vs volume fraction", loc="left")
+    ax[1].legend(frameon=False)
+    cn = nodes["coordination"].to_numpy()
+    ax[2].hist(cn, bins=np.arange(0, cn.max() + 2) - 0.5, color=PALETTE[1])
+    ax[2].set_xlabel("contacts per particle")
+    ax[2].set_title(f"Dark-phase contact network: mean coordination {cn.mean():.1f}", loc="left")
+    fig.suptitle(f"Triple-junction length density ({tp['phases']}): {tp['tpb_density_um-2']:.2f} µm⁻²,"
+                 f" {100 * tp['active_fraction']:.0f} % on connected networks",
+                 x=0.01, ha="left", fontsize=13, fontweight="bold")
+    fig.tight_layout()
+    fig.savefig(OUT / "13_materials.png", dpi=130, bbox_inches="tight")
+    plt.close(fig)
+
+step("transport field render")
+blk = phases.roi(slice(200, 600)).preview(8_000_000, isotropic=True)
+grey = blk.numpy() == 3
+fld = effective_transport(grey, blk.voxel_size.as_tuple(), axis=0, return_field=True)
+render_field(blk.derive(fld["field"]), blk.derive(grey.astype(np.uint8), kind="labels"),
+             cmap="coolwarm", label="concentration",
+             title=f"Steady diffusion through the grey phase along Z (8 µm block, "
+                   f"{blk.voxel_size.x:.0f} nm grid): D_eff/D0 = {fld['D_eff_ratio']:.2f}, "
+                   f"tau = {fld['tortuosity_factor']:.2f}",
+             out=str(OUT / "14_transport_field.png"), camera=cam)
+
+step("network render")
+dz = phases.voxel_size.z / 1e3
+zsel = nodes[(nodes.z_um > 200 * dz) & (nodes.z_um < 600 * dz)].copy()
+keep = set(zsel.id)
+lk = links[links.a.isin(keep) & links.b.isin(keep)].copy()
+remap = {old: new for new, old in enumerate(zsel.id, 1)}
+zsel["id"] = zsel.id.map(remap)
+lk["a"], lk["b"] = lk.a.map(remap), lk.b.map(remap)
+zsel["z_um"] -= 200 * dz
+render_network(zsel.reset_index(drop=True), lk, color_by="coordination", label="contacts",
+               title="Particle contact network (ball = particle, stick = contact)",
+               out=str(OUT / "15_contact_network.png"), camera=cam)
 
 print("gallery →", OUT)

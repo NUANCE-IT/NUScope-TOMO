@@ -1,4 +1,4 @@
-"""Recipes: reproducible YAML pipelines (the scriptable counterpart of Amira
+"""Recipes: reproducible YAML pipelines (the scriptable counterpart of Avizo
 recipes). Every executed step is logged with its parameters, timing and
 software versions in ``<project>/provenance.json``.
 
