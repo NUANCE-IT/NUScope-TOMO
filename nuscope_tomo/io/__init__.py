@@ -1,9 +1,4 @@
-from .stack_io import import_image_stack, list_slice_files
-from .project_io import save_project, load_project
+from . import stack  # noqa: F401  (registers io.* ops)
+from .stack import read_tiff_folder, read_tiff_stack, list_slices
 
-__all__ = [
-    "import_image_stack",
-    "list_slice_files",
-    "save_project",
-    "load_project",
-]
+__all__ = ["read_tiff_folder", "read_tiff_stack", "list_slices"]

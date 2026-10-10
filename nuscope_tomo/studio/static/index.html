@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NuScope Studio</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="top">
+  <div class="brand"><span class="logo">◈</span> NuScope <b>Studio</b></div>
+  <nav id="modes">
+    <button data-mode="explore" class="on">Explore</button>
+    <button data-mode="segment">Annotate &amp; Segment</button>
+    <button data-mode="analyze">Analyze</button>
+    <button data-mode="recipe">Recipe</button>
+  </nav>
+  <div id="project-name"></div>
+  <div id="jobs-pill" title="Background jobs">idle</div>
+</header>
+
+<main id="layout">
+  <aside id="left">
+    <section>
+      <h3>Data objects</h3>
+      <div id="volumes"></div>
+    </section>
+    <section>
+      <h3>Tables</h3>
+      <div id="tables"></div>
+    </section>
+    <section>
+      <h3>Media</h3>
+      <div id="media"></div>
+    </section>
+  </aside>
+
+  <section id="views">
+    <div class="view" data-axis="0"><canvas></canvas><div class="vlabel">XY · <span class="idx"></span></div></div>
+    <div class="view" data-axis="1"><canvas></canvas><div class="vlabel">XZ · <span class="idx"></span></div></div>
+    <div class="view" data-axis="2"><canvas></canvas><div class="vlabel">YZ · <span class="idx"></span></div></div>
+    <div class="view" id="view3d"><canvas id="gl"></canvas><div class="vlabel">3D · <span id="mode3d-label">volume</span></div>
+      <div id="gl-msg"></div></div>
+  </section>
+
+  <aside id="right">
+    <section id="panel-display">
+      <h3>Display</h3>
+      <label>Base <select id="base-sel"></select></label>
+      <label>Overlay <select id="ovl-sel"><option value="">— none —</option></select></label>
+      <label>Overlay opacity <input id="ovl-alpha" type="range" min="0" max="1" step="0.05" value="0.45"></label>
+      <canvas id="hist" width="300" height="70"></canvas>
+      <div class="row"><label>Min <input id="win-lo" type="range" min="0" max="255" value="0"></label>
+        <label>Max <input id="win-hi" type="range" min="0" max="255" value="255"></label></div>
+      <div id="vol-info" class="info"></div>
+    </section>
+
+    <section id="panel-3d">
+      <h3>3D rendering</h3>
+      <div class="seg" id="mode3d">
+        <button data-m="0" class="on">Volume</button><button data-m="1">MIP</button>
+        <button data-m="2">Iso</button><button data-m="3">Labels</button>
+      </div>
+      <label>Colormap <select id="cmap">
+        <option>bone</option><option>inferno</option><option>ice-fire</option><option>viridis</option><option>gray</option></select></label>
+      <label>Opacity / threshold <input id="tf-thr" type="range" min="0" max="1" step="0.01" value="0.35"></label>
+      <label>Density <input id="tf-dens" type="range" min="0.05" max="3" step="0.05" value="1"></label>
+      <div class="clip">
+        <span>Clip X</span><input id="cx0" type="range" min="0" max="1" step="0.01" value="0"><input id="cx1" type="range" min="0" max="1" step="0.01" value="1">
+        <span>Clip Y</span><input id="cy0" type="range" min="0" max="1" step="0.01" value="0"><input id="cy1" type="range" min="0" max="1" step="0.01" value="1">
+        <span>Clip Z</span><input id="cz0" type="range" min="0" max="1" step="0.01" value="0"><input id="cz1" type="range" min="0" max="1" step="0.01" value="1">
+      </div>
+      <label class="chk"><input id="cut-faces" type="checkbox" checked> grey values on cut faces</label>
+      <label class="chk"><input id="autorotate" type="checkbox"> auto-rotate</label>
+      <button id="snap">Save PNG</button>
+    </section>
+
+    <section id="panel-segment" hidden>
+      <h3>Annotate (scribbles)</h3>
+      <p class="hint">Paint a few strokes per class on XY slices, then train. Right-drag pans, ⌘/Ctrl+wheel zooms.</p>
+      <div id="classes"></div>
+      <div class="row"><button id="add-class">+ class</button>
+        <label>Brush <input id="brush" type="range" min="1" max="25" value="5"></label></div>
+      <div class="row"><button id="erase-strokes">Undo stroke</button><button id="save-ann">Save</button></div>
+      <button id="train" class="primary">Train random forest &amp; segment</button>
+      <div id="ann-stat" class="info"></div>
+    </section>
+
+    <section id="panel-ops">
+      <h3>Operations</h3>
+      <select id="op-sel"></select>
+      <div id="op-doc" class="hint"></div>
+      <div id="op-form"></div>
+      <label class="chk"><input id="op-save" type="checkbox" checked> save result to project</label>
+      <button id="op-run" class="primary">Run</button>
+    </section>
+
+    <section id="panel-recipe" hidden>
+      <h3>Recipe (auto-recorded)</h3>
+      <pre id="recipe-text"></pre>
+    </section>
+  </aside>
+</main>
+
+<section id="drawer">
+  <div id="drawer-head"><span id="drawer-title">Jobs</span><button id="drawer-toggle">▾</button></div>
+  <div id="drawer-body">
+    <div id="table-wrap"></div>
+    <canvas id="col-hist" width="360" height="180"></canvas>
+  </div>
+</section>
+
+<footer>NuScope-TOMO · created by <a href="https://github.com/rmsreis" target="_blank">Roberto dos Reis (@rmsreis)</a> · <a href="https://github.com/NUANCE-IT/NUScope-TOMO" target="_blank">NUANCE-IT/NUScope-TOMO</a></footer>
+
+<script src="gl.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

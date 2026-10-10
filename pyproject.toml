@@ -4,26 +4,49 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nuscope-tomo"
-version = "0.1.0"
-description = "3D reconstruction and visualization for FIB-SEM slice-and-view stacks"
+version = "0.2.0"
+description = "Open FIB-SEM slice-and-view tomography: alignment, artifact correction, ML segmentation, 3D quantification and correlative EDS chemistry, with a browser-based Studio."
+readme = "README.md"
 requires-python = ">=3.11"
+authors = [{ name = "Roberto dos Reis", email = "robertomsreis@gmail.com" }]
+maintainers = [{ name = "Roberto dos Reis (@rmsreis)" }]
+keywords = ["FIB-SEM", "slice and view", "tomography", "segmentation", "EDS", "microscopy", "Amira alternative"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Intended Audience :: Science/Research",
+]
 dependencies = [
-    "PySide6",
-    "pyvista",
-    "pyvistaqt",
-    "vtk",
-    "dask[array]",
-    "zarr",
-    "scikit-image",
-    "scipy",
-    "numpy",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "scikit-image>=0.24",
+    "scikit-learn>=1.4",
+    "dask[array]>=2024.1",
+    "zarr>=3.0",
     "tifffile",
     "imageio",
-    "trimesh",
+    "imageio-ffmpeg",
+    "pywavelets",
+    "pandas",
+    "pyyaml",
+    "matplotlib",
+    "pyvista>=0.44",
+    "fastapi",
+    "uvicorn[standard]",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest", "httpx"]
+
+[project.urls]
+Homepage = "https://github.com/NUANCE-IT/NUScope-TOMO"
+
 [project.scripts]
-nuscope-tomo = "nuscope_tomo.main:main"
+nuscope = "nuscope_tomo.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["nuscope_tomo*"]
+
+[tool.setuptools.package-data]
+"nuscope_tomo.studio" = ["static/*"]

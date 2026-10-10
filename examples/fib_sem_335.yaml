@@ -1,0 +1,53 @@
+# NuScope-TOMO recipe — FIB-SEM slice-and-view, sample 335 (SE, 50 x 5 x 5 nm voxels)
+# Run:  nuscope run examples/fib_sem_335.yaml
+name: fib_sem_335
+project: projects/fib_sem_335/recipe_run
+input:
+  zarr: projects/fib_sem_335/raw.zarr
+  voxel_size_nm: [50, 5, 5]
+steps:
+  # ---- pre-processing ---------------------------------------------------
+  - op: preprocess.auto_crop            # remove Pt cap, trench walls, padding
+  - op: preprocess.align                # skips stacks that are already registered
+    id: align
+  - op: preprocess.destripe             # curtaining (wavelet-FFT)
+    params: {level: 5, sigma: 3.0}
+    save: true
+  - op: preprocess.flatten_shading      # detector / geometry illumination gradient
+  - op: preprocess.normalize_slices     # slice-to-slice brightness flicker
+    id: corrected
+    save: true
+  - op: preprocess.bin                  # 10 nm XY pixels (Z is 50 nm anyway)
+    params: {factors: [1, 2, 2]}
+  - op: preprocess.denoise_nlm
+    id: denoised
+    params: {h: 0.8}
+    save: true
+  # ---- segmentation -----------------------------------------------------
+  - op: segment.random_forest           # multi-scale features + random forest
+    id: rf
+    params:
+      classes: 4
+      class_names: {1: pore, 2: dark phase, 3: grey phase, 4: bright phase}
+      bands: [[0, 70], [0, 104], [109, 121], [130, 255]]   # bootstrap annotations
+      n_slices: 10
+      n_estimators: 60
+  - op: segment.smooth_labels
+    id: phases
+    params: {size: 3}
+    save: true
+  # ---- quantification ---------------------------------------------------
+  - op: analyze.phases
+    id: phase_metrics
+    inputs: {labels: phases}
+  - op: segment.extract_class
+    id: dark
+    inputs: {volume: phases}
+    params: {label: 2, open_nm: 20, min_size_nm3: 200000}
+  - op: segment.separate
+    id: particles
+    params: {min_distance_nm: 150, h_nm: 20, min_size_nm3: 500000}
+    save: true
+  - op: analyze.objects
+    id: particles_measured
+    inputs: {labels: particles, intensity: denoised}
