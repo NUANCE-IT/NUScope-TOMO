@@ -41,6 +41,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest", "httpx"]
+ai = ["torch>=2.2"]
 
 [project.urls]
 Homepage = "https://github.com/NUANCE-IT/NUScope-TOMO"

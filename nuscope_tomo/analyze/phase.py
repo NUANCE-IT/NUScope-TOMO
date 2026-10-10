@@ -97,7 +97,7 @@ def size_distribution(mask: np.ndarray, spacing, radii_nm: Optional[Sequence[flo
 
 @op("analyze.phases", inputs=("labels",))
 def phase_metrics(labels: Volume, tortuosity: bool = True, max_voxels_tortuosity: int = 96**3,
-                  max_voxels: int = 64_000_000) -> dict:
+                  max_voxels: int = 400_000_000) -> dict:
     """Volume fraction, specific surface, interfaces, percolation, tortuosity, size distribution per class."""
     if np.prod(labels.shape) > max_voxels:  # surfaces on a strided copy for huge volumes
         labels = labels.preview(max_voxels)

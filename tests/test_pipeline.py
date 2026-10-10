@@ -215,3 +215,56 @@ def test_network_two_spheres_neck():
     assert list(nodes.coordination) == [1, 1] and len(links) == 1
     neck = 2 * np.sqrt(150 ** 2 - 130 ** 2)  # analytical neck diameter (nm)
     assert links.throat_diameter_nm[0] == pytest.approx(neck, abs=15)
+
+
+def test_calibration_check_detects_wrong_slice_thickness():
+    from nuscope_tomo.analyze import calibration_check
+    rng = np.random.default_rng(0)
+    iso = ndi.gaussian_filter(rng.random((120, 120, 120)), 6)[::2]  # true slices = 2 × pixel
+    ok = calibration_check(Volume(iso, VoxelSize(20, 10, 10)))
+    bad = calibration_check(Volume(iso, VoxelSize(50, 10, 10)))
+    assert ok["warning"] == "" and abs(ok["z_over_xy"] - 1) < 0.15
+    assert bad["warning"] and abs(bad["z_over_xy"] - 2.5) < 0.3
+
+
+def test_integral_range_predicts_sampling_error():
+    from nuscope_tomo.analyze import integral_range_cov
+    fr, A, thr = [], [], None
+    for seed in range(12):
+        f = ndi.gaussian_filter(np.random.default_rng(seed).random((136,) * 3), 2,
+                                mode="wrap")[20:-20, 20:-20, 20:-20]
+        thr = np.percentile(f, 70) if thr is None else thr
+        m = f > thr
+        fr.append(m.mean())
+        A.append(integral_range_cov(m, (10, 10, 10)))
+    p, V = np.mean(fr), 96 ** 3 * 1e3 / 1e9
+    predicted = np.sqrt(p * (1 - p) * np.median(A) / V)
+    assert 0.6 < predicted / np.std(fr, ddof=1) < 1.6
+
+
+def _noisy_phantom(noise, seed=0, shape=(12, 128, 128)):
+    rng = np.random.default_rng(seed)
+    f = ndi.gaussian_filter(rng.random(shape), (2, 5, 5))
+    ph = (np.digitize(f, np.percentile(f, [40, 75])) + 1).astype(np.uint8)
+    clean = ph * 60.0 + 20
+    return ph, clean, (clean + rng.normal(0, noise, ph.shape)).clip(0, 255).astype(np.uint8)
+
+
+def test_noise2void_beats_input_noise():
+    pytest.importorskip("torch")
+    from nuscope_tomo.ai import denoise_n2v
+    _, clean, noisy = _noisy_phantom(30)
+    out = denoise_n2v(Volume(noisy), steps=300, batch=32).numpy().astype(float)
+    psnr = lambda a: 10 * np.log10(255 ** 2 / np.mean((a - clean) ** 2))  # noqa: E731
+    assert psnr(out) > psnr(noisy.astype(float)) + 6
+
+
+def test_unet_from_scribbles_matches_forest():
+    pytest.importorskip("torch")
+    from nuscope_tomo.ai import unet_segment
+    ph, _, noisy = _noisy_phantom(40)
+    v = Volume(noisy)
+    ann = auto_annotations(v, classes=3, n_slices=3, erode_px=3)
+    rf = (PixelClassifier(n_estimators=40).fit(v, ann).predict(v).numpy() == ph).mean()
+    un = (unet_segment(v, annotations=ann, classes=3, steps=300)["volume"].numpy() == ph).mean()
+    assert un > rf - 0.03

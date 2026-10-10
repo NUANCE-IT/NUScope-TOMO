@@ -60,3 +60,7 @@ def list_ops() -> dict[str, OpSpec]:
 def _ensure_loaded():
     # Importing the subpackages registers their operations.
     from .. import analyze, chem, io, preprocess, segment, viz  # noqa: F401
+    try:  # deep learning is optional (needs torch)
+        from .. import ai  # noqa: F401
+    except ImportError:
+        pass
