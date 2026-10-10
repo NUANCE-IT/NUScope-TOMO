@@ -1,102 +1,105 @@
-# NuScope Tomo
+# NuScope-TOMO
 
-A desktop application for reconstructing and visualizing 3D volumes from
-FIB-SEM (focused ion beam / scanning electron microscope) slice-and-view
-image series — an open alternative to the reconstruction/visualization
-workflow in software like Avizo, scoped to the FIB-SEM pipeline: import a
-slice stack, align it, threshold-segment it, render it in 3D, and export a
-surface mesh.
+**Open FIB-SEM slice-and-view tomography — from raw slices to quantified, chemically
+resolved 3D microstructure.**
 
-## Why it's built this way
+Created by **Roberto dos Reis ([@rmsreis](https://github.com/rmsreis))** · NUANCE Center,
+Northwestern University · [NUANCE-IT/NUScope-TOMO](https://github.com/NUANCE-IT/NUScope-TOMO)
 
-FIB-SEM stacks can run past what fits in RAM, so the volume is never fully
-loaded except at two deliberate points:
+NuScope-TOMO covers the Thermo Fisher Amira FIB-SEM workflow (import →
+pre-processing → AI segmentation → quantification → visualization/animation →
+recipes). It adds correlative EDS chemistry, and everything is available as code, as
+reproducible YAML recipes and in a browser-based UI.
 
-- **Storage**: every volume (raw / aligned / segmentation mask) lives on
-  disk as a [zarr](https://zarr.dev) array and is only ever touched through
-  [dask](https://dask.org), so import, slice-to-slice alignment and
-  thresholding all run chunk-by-chunk with bounded memory, regardless of
-  stack size.
-- **Rendering / meshing**: GPU volume rendering and marching-cubes meshing
-  need an in-memory array. `VolumeData.preview()` downsamples the whole
-  volume to a memory-bounded size for these; `VolumeData.roi()` pulls a
-  full-resolution crop when you need to inspect a region exactly. This is
-  the same tradeoff Avizo/napari make for large data — it's made explicit
-  here rather than hidden.
+<p>
+  <img src="docs/images/09_phases_3d.jpg" width="49%" alt="Phase surfaces with cut-away">
+  <img src="docs/images/10_particles_3d.jpg" width="49%" alt="Particles coloured by size">
+</p>
+
+*FIB-SEM sample 335 (812 slices) processed by `examples/fib_sem_335.yaml` in under 5 minutes:
+dark phase with a grey-value cut-away (left) and 1 934 separated particles coloured by equivalent
+diameter (right).*
+
+| Stage | What you get |
+|---|---|
+| **Import** | TIFF/PNG folders (natural sort), multipage TIFF, Thermo Fisher pixel-size tags, streamed into chunked Zarr v3, so stacks larger than RAM are fine |
+| **Pre-processing** | block-face auto-crop (Pt cap / trench / padding), multi-baseline drift solve with already-registered detection, wavelet–FFT curtain removal, shading flattening, slice brightness normalisation, NLM / TV / anisotropic 3D denoising, binning, isotropic resampling, 52° tilt calibration |
+| **Segmentation** | Otsu / multi-Otsu / hysteresis, **random-forest classifier trained from a few scribbles** (41 multi-scale features), majority smoothing, watershed separation of touching particles |
+| **Quantification** | per object: volume, surface area, equivalent diameter, sphericity, solidity, Feret, ellipsoid axes, elongation/flatness, orientation, nearest neighbour, intensity/element means. Per phase: volume fraction, specific surface, interface density, Euler number, percolation, geodesic tortuosity, continuous size distribution |
+| **Chemistry (EDS)** | element-map stacks → registration to SE → 3D composition → unsupervised chemical phases (k-means / GMM / NMF) → composition per SE phase or object; forward simulator for validation |
+| **Visualization** | GPU renders (volume, phase surfaces with cut-away, objects coloured by any measurement), turntable MP4s, figure panels with true aspect and scale bars |
+| **Studio** | browser UI: linked XY/XZ/YZ views, WebGL2 ray-marched 3D (DVR / MIP / iso / labels, clipping), scribble annotation → train → segment, every operation as a form, sortable measurement tables. All actions are auto-recorded as a recipe |
+| **Recipes** | YAML pipelines, `nuscope run`; every step logged with parameters, timings and library versions in `provenance.json` |
 
 ## Install
 
-Requires Python 3.11+ (developed against 3.12; VTK/PyVista wheels lag
-behind the newest CPython releases, so avoid 3.13+ until they catch up).
-
 ```bash
-conda create -n nuscope-tomo python=3.12
-conda activate nuscope-tomo
-pip install -r requirements.txt
+uv venv --python 3.12 && source .venv/bin/activate
+uv pip install -e ".[dev]"
 ```
 
-## Run
+## Use
 
 ```bash
-python -m nuscope_tomo.main
+nuscope run examples/fib_sem_335.yaml          # full pipeline on a slice-and-view stack
+nuscope studio projects/fib_sem_335            # open http://127.0.0.1:8765
+nuscope ops                                    # list operations and parameters
+python examples/showcase.py                    # figures, renders and animation
 ```
 
-or, after `pip install -e .`:
+From Python:
 
-```bash
-nuscope-tomo
+```python
+from nuscope_tomo import Volume
+from nuscope_tomo.preprocess import auto_crop, align, destripe, denoise_nlm
+from nuscope_tomo.segment import random_forest
+from nuscope_tomo.analyze import measure_objects
+
+vol = Volume.from_zarr("raw.zarr")
+vol = denoise_nlm(destripe(align(auto_crop(vol))["volume"]))
+phases = random_forest(vol, scribbles="annotations.json", classes=3)["volume"]
 ```
 
-## Workflow
+Remote use: run `nuscope studio --host 0.0.0.0` on the workstation that holds the data
+and open it from any laptop. The browser only receives slices and a downsampled 3D preview.
 
-1. **File > Import Slice Stack…** — point it at a folder of 2D slice
-   images (TIFF/PNG/BMP/JPEG, natural-sorted by trailing number in the
-   filename) and a project folder to store the volume in, and set the
-   voxel size (Z = slice thickness, Y/X = pixel size, in nm). This streams
-   the images into `project/raw.zarr` one slice at a time.
-2. **Process > Align Slices…** — corrects slice-to-slice drift with
-   subpixel phase cross-correlation (registers each slice to its
-   predecessor and accumulates the shift, since FIB-SEM drift is
-   sequential, not fixed to one reference frame), then writes an aligned,
-   auto-cropped copy to `project/aligned.zarr`.
-3. **Process > Threshold Segmentation…** — pick a low/high intensity band
-   (or click "Compute Otsu Threshold" for a data-driven default) and apply
-   it out-of-core to produce `project/mask.zarr`.
-4. **Process > Generate Mesh…** — downsamples the mask to an in-memory
-   preview, removes small components, runs marching cubes, and prompts to
-   export an STL/OBJ/PLY.
-5. **File > Save Project** — persists whichever volumes exist (raw /
-   aligned / mask) plus a `project.json` manifest; **File > Open
-   Project…** reloads them.
+## Design notes
 
-The **Layers** dock controls what's shown in the 3D view (volume
-rendering, orthogonal slice planes, per-mesh visibility) and which volume
-is active; the 2D panel on the right lets you scrub through any single
-Z/Y/X plane directly from disk.
+- **Out-of-core first.** Volumes are Dask arrays over Zarr; slice-wise operations stream.
+  Connected components, watershed and surface meshing run in memory, on a binned volume
+  or an ROI for very large data.
+- **Anisotropy everywhere.** FIB-SEM voxels are typically 5–10 nm in XY and 10–50 nm in
+  Z. Distances, filters, surface areas and renders all use physical spacing.
+- **Validated against ground truth.** `pytest` runs 12 tests on synthetic phantoms.
+  They cover drift recovery, stripe removal, sphere volume, area and sphericity (within 1–2 %),
+  percolation and tortuosity, random-forest accuracy, watershed splitting, EDS registration
+  and phase recovery, the recipe engine and the Studio API.
+- **Honest alignment.** Correlation cannot separate stage drift from microstructure that is
+  inclined to the milling axis, which is especially a problem with thick slices. `align`
+  therefore detects stacks that are already registered and leaves them alone, and supports
+  fiducial ROIs and a high-pass drift model.
 
-## Project structure
+## Project layout
 
 ```
 nuscope_tomo/
-  data/volume.py          VolumeData: dask/zarr-backed out-of-core volume
-  io/stack_io.py           image sequence -> zarr import
-  io/project_io.py         project save/load (project.json manifest)
-  processing/alignment.py  phase cross-correlation slice registration
-  processing/segmentation.py  Otsu / threshold / connected components
-  processing/meshing.py    marching cubes + STL/OBJ/PLY export
-  ui/                       PySide6 app: main window, PyVista 3D view,
-                            2D slice browser, dialogs
-tests/smoke_test.py         headless pipeline check on synthetic data
+  core/        Volume, operation registry, recipes + provenance
+  io/          slice import/export
+  preprocess/  geometry, alignment, artifact correction, denoising
+  segment/     thresholds, random-forest classifier, object separation
+  analyze/     object morphometry, phase metrics
+  chem/        EDS chemical tomography (+ simulator)
+  viz/         GPU rendering, animation, figures
+  studio/      FastAPI server + WebGL2 front-end
+  cli.py       `nuscope` command
+examples/      recipe for the sample dataset, showcase script
+tests/         ground-truth tests
 ```
 
-## Known limitations (first pass)
+See [PLAN.md](PLAN.md) for the roadmap: deep-learning segmentation, Noise2Void,
+native `.h5oina` / `.bcf` EDS readers.
 
-- Volume rendering and meshing operate on a downsampled preview for large
-  volumes, not full resolution — bump the "3D preview resolution cap" in
-  the Layers dock if your machine has the RAM/VRAM for more, or use
-  `VolumeData.roi()` (currently only exposed programmatically) to inspect
-  a full-resolution region.
-- Connected-component labeling and mesh generation are in-memory
-  operations; there's no chunked/distributed labeling across zarr chunk
-  boundaries yet.
-- No undo/redo, no manual (paint-brush) segmentation — thresholding only.
+## Citation
+
+If NuScope-TOMO helps your research, please cite it using [CITATION.cff](CITATION.cff).
+Author: Roberto dos Reis (@rmsreis).

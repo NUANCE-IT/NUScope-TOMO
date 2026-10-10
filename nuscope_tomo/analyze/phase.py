@@ -133,7 +133,7 @@ def phase_metrics(labels: Volume, tortuosity: bool = True, max_voxels_tortuosity
     for i, a in enumerate(classes):
         for b in classes[i + 1:]:
             # interface between a and b: area of a∪… approximated from pair masks
-            ab = areas[a] + areas[b] - _area((lab == a) | (lab == b), sp)
+            ab = max(0.0, areas[a] + areas[b] - _area((lab == a) | (lab == b), sp))
             inter.append({"class_a": a, "class_b": b,
                           "interface_area_um2": ab / 2 / 1e6,
                           "interface_density_um-1": ab / 2 / total_vol * 1e3})

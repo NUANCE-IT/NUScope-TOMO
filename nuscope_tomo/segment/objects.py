@@ -64,18 +64,36 @@ def connected_components(volume: Volume, min_size_nm3: float = 0.0,
 
 @op("segment.separate")
 def separate(volume: Volume, min_distance_nm: float = 100.0, h_nm: float = 15.0,
-             min_size_nm3: float = 0.0, compactness: float = 0.0) -> Volume:
-    """Split touching particles: anisotropic distance transform + h-maxima seeds + watershed."""
-    m = volume.numpy() > 0
-    dist = ndi.distance_transform_edt(m, sampling=volume.voxel_size.as_tuple())
-    # smooth the distance map a little so shallow ripples don't seed objects
-    sig = [min_distance_nm / 4 / v for v in volume.voxel_size.as_tuple()]
-    ds = ndi.gaussian_filter(dist, [min(s, 2) for s in sig])
+             min_size_nm3: float = 0.0, compactness: float = 0.0,
+             seed_voxel_nm: Optional[float] = None) -> Volume:
+    """Split touching particles: anisotropic distance transform + h-maxima seeds + watershed.
+
+    Seeds are found on a coarser grid (``seed_voxel_nm``, default ≈ min_distance/3)
+    because h-maxima is the slow step; the watershed itself runs at full resolution.
+    """
     from skimage.morphology import h_maxima
-    fp = _ball(volume, min_distance_nm / 2)
-    peaks = h_maxima(ds, h_nm, footprint=fp) & m
-    markers, _ = ndi.label(peaks)
-    lab = watershed(-ds, markers, mask=m, compactness=compactness)
+
+    m = volume.numpy() > 0
+    vs = np.array(volume.voxel_size.as_tuple())
+    dist = ndi.distance_transform_edt(m, sampling=tuple(vs))
+    target = seed_voxel_nm or min_distance_nm / 3
+    f = np.maximum(1, np.floor(target / vs)).astype(int)
+    small = dist[::f[0], ::f[1], ::f[2]]
+    svs = vs * f
+    sig = [min(2.0, min_distance_nm / 4 / v) for v in svs]
+    ds = ndi.gaussian_filter(small, sig)
+    r = [max(0, int(round(min_distance_nm / 2 / v))) for v in svs]
+    zz, yy, xx = np.ogrid[-r[0]:r[0] + 1, -r[1]:r[1] + 1, -r[2]:r[2] + 1]
+    fp = (zz / max(r[0], 1)) ** 2 + (yy / max(r[1], 1)) ** 2 + (xx / max(r[2], 1)) ** 2 <= 1
+    peaks = h_maxima(ds, h_nm, footprint=fp) & (small > 0)
+    pl, _ = ndi.label(peaks)
+    markers = np.zeros(m.shape, np.int32)
+    for i, c in enumerate(ndi.center_of_mass(peaks, pl, range(1, pl.max() + 1)), 1):
+        idx = tuple(int(round(ci * fi)) for ci, fi in zip(c, f))
+        idx = tuple(min(v, s - 1) for v, s in zip(idx, m.shape))
+        if m[idx]:
+            markers[idx] = i
+    lab = watershed(-dist, markers, mask=m, compactness=compactness)
     if min_size_nm3:
         lab = remove_small_objects(lab, max_size=int(min_size_nm3 / volume.voxel_size.voxel_volume_nm3))
     lab, _, _ = _relabel(lab)

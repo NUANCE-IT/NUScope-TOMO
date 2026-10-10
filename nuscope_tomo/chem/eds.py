@@ -173,7 +173,10 @@ def chemical_phases(eds: EDSStack, n_phases: int = 3, method: str = "kmeans",
         model = KMeans(n_phases, n_init=10, random_state=0).fit(tr)
         pred = model.predict(X)
     elif method == "gmm":
-        model = GaussianMixture(n_phases, covariance_type="full", random_state=0).fit(tr)
+        # compositions sum to 1 → singular covariance; regularise
+        model = GaussianMixture(n_phases, covariance_type="full", reg_covar=1e-4,
+                                random_state=0).fit(tr.astype(np.float64))
+        X = X.astype(np.float64)
         pred = model.predict(X)
     elif method == "nmf":
         model = NMF(n_phases, init="nndsvda", max_iter=500, random_state=0).fit(np.clip(tr, 0, None))

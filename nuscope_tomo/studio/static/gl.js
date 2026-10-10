@@ -149,7 +149,7 @@ class VolumeRenderer {
     this.labTex = this._tex3d(new Uint8Array([0]), [1,1,1], false);
     this.cmapTex = gl.createTexture(); this.lcolTex = gl.createTexture();
     this.setColormap("bone"); this.setLabelColors({});
-    this.state = { yaw: 0.8, pitch: 0.45, dist: 2.4, mode: 0, thr: 0.35, dens: 1, wlo: 0, whi: 1,
+    this.state = { yaw: 0.8, pitch: 0.45, dist: 1.7, mode: 0, thr: 0.35, dens: 1, wlo: 0, whi: 1,
       clipMin: [0,0,0], clipMax: [1,1,1], cutFaces: 1, hasVol: 0, hasLab: 0,
       box: [1,1,1], tex: [1,1,1] };
     this._mouse();

@@ -67,15 +67,24 @@ def _plotter(size=(1600, 1200)) -> pv.Plotter:
 
 def _finish(p: pv.Plotter, bounds, out: Optional[str], camera: Optional[dict],
             axes: bool = True, scale_bar: bool = True):
+    """Frame the scene. Camera dict: ``direction`` (from focal point towards
+    the eye, data x/y/z), ``up`` and ``zoom``; or legacy azimuth/elevation.
+    Default lays the long milling axis (Z) horizontally across the frame."""
+    cam = {"direction": (0.9, 0.6, 0.35), "up": (0, 1, 0), "zoom": 1.35, **(camera or {})}
     if axes:
         p.add_mesh(pv.Box(bounds).outline(), color="#8a94a6", line_width=1.2)
-    p.camera_position = "iso"
-    p.camera.azimuth = (camera or {}).get("azimuth", 35)
-    p.camera.elevation = (camera or {}).get("elevation", 20)
-    p.reset_camera()
-    p.camera.zoom((camera or {}).get("zoom", 1.25))
     if scale_bar:
         _scale_bar(p, bounds)
+    c = np.array([(bounds[0] + bounds[1]) / 2, (bounds[2] + bounds[3]) / 2,
+                  (bounds[4] + bounds[5]) / 2])
+    if "azimuth" in cam and "direction" not in (camera or {}):
+        p.camera_position = "iso"
+        p.camera.azimuth, p.camera.elevation = cam["azimuth"], cam.get("elevation", 20)
+    else:
+        d = np.asarray(cam["direction"], float)
+        p.camera_position = [tuple(c + d / np.linalg.norm(d)), tuple(c), tuple(cam["up"])]
+    p.reset_camera(bounds=bounds)
+    p.camera.zoom(cam["zoom"])
     if out:
         Path(out).parent.mkdir(parents=True, exist_ok=True)
         p.screenshot(out)
@@ -83,28 +92,32 @@ def _finish(p: pv.Plotter, bounds, out: Optional[str], camera: Optional[dict],
 
 
 def _scale_bar(p: pv.Plotter, bounds):
+    """Bar along the Z (milling) edge of the box, label set clear of it."""
     x0, x1, y0, y1, z0, z1 = bounds
-    span = x1 - x0
+    span = z1 - z0
     nice = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100]
-    L = max(n for n in nice if n <= span * 0.4) if span > 0.25 else span / 2
-    start = np.array([x0, y1 + 0.04 * (y1 - y0), z0])
-    p.add_mesh(pv.Tube(pointa=start, pointb=start + [L, 0, 0], radius=span * 0.006), color="white")
-    p.add_point_labels([start + [L / 2, 0.05 * (y1 - y0), 0]],
-                       [f"{L:g} µm"], text_color="white", font_size=26, shape=None,
-                       show_points=False, always_visible=True)
+    L = max([n for n in nice if n <= span * 0.3] or [span / 3])
+    off = 0.06 * max(y1 - y0, x1 - x0)
+    start = np.array([x1, y0 - off, z1 - L])
+    p.add_mesh(pv.Tube(pointa=start, pointb=start + [0, 0, L], radius=span * 0.004),
+               color="white")
+    p.add_point_labels([start + [0, -1.6 * off, L / 2]], [f"{L:g} µm"], text_color="white",
+                       font_size=22, shape=None, show_points=False, always_visible=True,
+                       justification_horizontal="center")
 
 
 def render_volume(vol: Volume, out: Optional[str] = None, cmap: str = "bone",
-                  clim: Optional[Sequence[float]] = None, opacity="sigmoid",
+                  clim: Optional[Sequence[float]] = None,
+                  opacity=(0.0, 0.0, 0.0, 0.02, 0.15, 0.5, 0.85),
                   size=(1600, 1200), camera: Optional[dict] = None, title: str = ""):
     g = to_grid(vol)
     arr = g.point_data["values"]
-    clim = clim or np.percentile(arr[arr > 0] if (arr > 0).any() else arr, (2, 99.8))
+    clim = clim or np.percentile(arr[arr > 0] if (arr > 0).any() else arr, (30, 99.8))
     p = _plotter(size)
     p.add_volume(g, scalars="values", cmap=cmap, clim=clim, opacity=opacity,
                  show_scalar_bar=False, shade=False, blending="composite")
     if title:
-        p.add_text(title, font_size=14, color="white", position="upper_left")
+        p.add_text(title, font_size=12, color="white", position="upper_left")
     return _finish(p, g.bounds, out, camera)
 
 
@@ -163,9 +176,13 @@ def render_phases(labels: Volume, intensity: Optional[Volume] = None,
             p.add_mesh(gi.slice_orthogonal(), cmap="gray", clim=clim, show_scalar_bar=False,
                        lighting=False)
     if legend:
-        p.add_legend(bcolor=None, face="circle", size=(0.18, 0.12), loc="upper right")
+        W, H = size
+        for k, c in enumerate(classes):
+            col = (colors or {}).get(c, PALETTE[classes.index(c) % len(PALETTE)])
+            p.add_text(f"■ {names.get(str(c), f'class {c}')}", position=(W - 260, H - 50 - 34 * k),
+                       font_size=13, color=col)
     if title:
-        p.add_text(title, font_size=14, color="white", position="upper_left")
+        p.add_text(title, font_size=12, color="white", position="upper_left")
     return _finish(p, g.bounds, out, camera)
 
 
@@ -223,14 +240,15 @@ def render_objects(objects: Volume, values: Optional[dict] = None, cmap: str = "
                                                   "vertical": True, "position_x": 0.88,
                                                   "position_y": 0.2, "height": 0.6,
                                                   "title_font_size": 22,
-                                                  "label_font_size": 18})
+                                                  "label_font_size": 18, "fmt": "%.2f" if (clim and max(clim) <= 10) else "%.0f",
+                                                  "n_labels": 5})
     g = to_grid(objects)
     if context is not None:
         s = mask_surface(context.numpy() > 0, context.voxel_size.as_tuple(), decimate=0.6)
         if s is not None:
             p.add_mesh(s, color="#c8d0dc", opacity=0.08)
     if title:
-        p.add_text(title, font_size=14, color="white", position="upper_left")
+        p.add_text(title, font_size=12, color="white", position="upper_left")
     return _finish(p, g.bounds, out, camera)
 
 

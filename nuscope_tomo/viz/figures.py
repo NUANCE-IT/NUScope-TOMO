@@ -41,28 +41,36 @@ def scale_bar(ax, px_nm: float, width_px: int, color="white"):
 
 def ortho_views(vol: Volume, labels: Optional[Volume] = None, pos: Optional[Sequence[int]] = None,
                 title: str = "", out: Optional[str] = None, clim=None, alpha: float = 0.45):
-    """XY / XZ / YZ sections in true physical proportions, optional label overlay."""
+    """XY section plus XZ / YZ strips (Z running left→right) in true physical
+    proportions, with an optional label overlay."""
     nz, ny, nx = vol.shape
     pos = pos or (nz // 2, ny // 2, nx // 2)
     vz, vy, vx = vol.voxel_size.as_tuple()
     secs = [("XY", vol.get_slice(0, pos[0]), vx, vy),
-            ("XZ", vol.get_slice(1, pos[1]), vx, vz),
-            ("YZ", vol.get_slice(2, pos[2]), vy, vz)]
-    labs = [labels.get_slice(a, p) for a, p in enumerate(pos)] if labels is not None else None
+            ("XZ", vol.get_slice(1, pos[1]).T, vz, vx),
+            ("YZ", vol.get_slice(2, pos[2]).T, vz, vy)]
+    labs = None
+    if labels is not None:
+        labs = [labels.get_slice(0, pos[0]), labels.get_slice(1, pos[1]).T,
+                labels.get_slice(2, pos[2]).T]
     ncls = int(labels.data.max().compute()) if labels is not None else 0
     clim = clim or np.percentile(secs[0][1], (1, 99.5))
+    ext = [(im.shape[1] * sx, im.shape[0] * sy) for _, im, sx, sy in secs]   # (w, h) nm
     with plt.rc_context(STYLE):
-        fig = plt.figure(figsize=(15, 6.2))
-        widths = [s[1].shape[1] * s[2] for s in secs]
-        gs = fig.add_gridspec(1, 3, width_ratios=widths, wspace=0.06)
-        for i, (name, img, sx, sy) in enumerate(secs):
-            ax = fig.add_subplot(gs[i])
+        W = ext[0][0] + ext[1][0]
+        H = max(ext[0][1], ext[1][1] + ext[2][1])
+        fig = plt.figure(figsize=(16, 16 * H / W * 1.08))
+        gs = fig.add_gridspec(2, 2, width_ratios=[ext[0][0], ext[1][0]],
+                              height_ratios=[ext[1][1], ext[2][1]], wspace=0.04, hspace=0.12)
+        axes = [fig.add_subplot(gs[:, 0]), fig.add_subplot(gs[0, 1]), fig.add_subplot(gs[1, 1])]
+        for i, (ax, (name, img, sx, sy)) in enumerate(zip(axes, secs)):
             ax.imshow(img, cmap="gray", vmin=clim[0], vmax=clim[1], aspect=sy / sx,
                       interpolation="lanczos")
             if labs is not None:
                 ax.imshow(labs[i], cmap=label_cmap(ncls, alpha), vmin=0, vmax=ncls,
                           aspect=sy / sx, interpolation="nearest")
-            ax.set_title(f"{name}  ({['z', 'y', 'x'][i]} = {pos[i]})", loc="left")
+            hint = "" if i == 0 else "   Z (milling) →"
+            ax.set_title(f"{name}  ({['z', 'y', 'x'][i]} = {pos[i]}){hint}", loc="left")
             ax.set_xticks([]), ax.set_yticks([])
             scale_bar(ax, sx, img.shape[1])
         if title:
