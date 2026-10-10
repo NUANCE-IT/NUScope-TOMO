@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nuscope-tomo"
+version = "0.1.0"
+description = "3D reconstruction and visualization for FIB-SEM slice-and-view stacks"
+requires-python = ">=3.11"
+dependencies = [
+    "PySide6",
+    "pyvista",
+    "pyvistaqt",
+    "vtk",
+    "dask[array]",
+    "zarr",
+    "scikit-image",
+    "scipy",
+    "numpy",
+    "tifffile",
+    "imageio",
+    "trimesh",
+]
+
+[project.scripts]
+nuscope-tomo = "nuscope_tomo.main:main"
+
+[tool.setuptools.packages.find]
+include = ["nuscope_tomo*"]

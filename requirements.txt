@@ -1,0 +1,12 @@
+PySide6
+pyvista
+pyvistaqt
+vtk
+dask[array]
+zarr
+scikit-image
+scipy
+numpy
+tifffile
+imageio
+trimesh
