@@ -255,7 +255,7 @@ function drawHist(info) {
   const c = $("#hist"), x = c.getContext("2d"), h = info.histogram.counts;
   const W = c.width = c.clientWidth * devicePixelRatio, H = c.height = 70 * devicePixelRatio;
   x.clearRect(0, 0, W, H); const m = Math.max(...h.slice(1)) || 1;
-  x.fillStyle = "#4cc2ff";
+  x.fillStyle = "#a993d9";
   h.forEach((v, i) => { const bh = Math.min(1, Math.sqrt(v / m)) * (H - 4); x.fillRect(i * W / h.length, H - bh, W / h.length, bh); });
 }
 

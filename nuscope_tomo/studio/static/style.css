@@ -3,7 +3,8 @@
 :root {
   --bg: #0a0d12; --surface: #10141b; --surface-2: #161b24; --surface-3: #1d2430; --line: #232b38; --line-2: #2f3949;
   --text: #e6e9ef; --muted: #8c95a6; --faint: #5f6878;
-  --accent: #4fb6ee; --accent-ink: #06141d; --accent-soft: rgba(79, 182, 238, .14);
+  --accent: #a993d9; --accent-btn: #5b3797; --accent-ink: #ffffff; --accent-soft: rgba(131, 110, 170, .2);
+  --nu-purple: #4E2A84;
   --amber: #e3a23c; --ok: #3fcf8e; --warn: #e6b23a; --err: #f06a6a;
   --c1: #E69F00; --c2: #56B4E9; --c3: #009E73; --c4: #F0E442; --c5: #0072B2; --c6: #D55E00; --c7: #CC79A7;
   --viewport: #05070b;
@@ -16,7 +17,7 @@
 :root[data-theme="light"] {
   --bg: #eef1f5; --surface: #ffffff; --surface-2: #f4f6f9; --surface-3: #e8ecf2; --line: #dbe1e9; --line-2: #c7cfdb;
   --text: #17202c; --muted: #5a6575; --faint: #8b95a5;
-  --accent: #1677b8; --accent-ink: #ffffff; --accent-soft: rgba(22, 119, 184, .1);
+  --accent: #4E2A84; --accent-btn: #4E2A84; --accent-ink: #ffffff; --accent-soft: rgba(78, 42, 132, .09);
   --amber: #b9741a; --ok: #12895a; --warn: #a77a0e; --err: #c73b3b;
   --c4: #c9b500;
   --shadow: 0 10px 30px rgba(20, 30, 45, .16);
@@ -38,7 +39,7 @@ header#top { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px;
   background: var(--surface); border-bottom: 1px solid var(--line); min-width: 0; }
 .brand { display: flex; align-items: center; gap: 8px; font-size: 15px; white-space: nowrap; }
 .brand b { color: var(--accent); font-weight: 600; }
-.logo { width: 20px; height: 20px; color: var(--amber); }
+.logo { width: 20px; height: 20px; color: var(--accent); }
 .chip { color: var(--muted); font-size: 12px; padding: 2px 9px; border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
 .search { display: flex; align-items: center; gap: 8px; margin-left: 8px; flex: 0 1 420px; min-width: 0;
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 10px; color: var(--muted); cursor: pointer; font: inherit; }
@@ -182,8 +183,8 @@ button { background: var(--surface-2); color: var(--text); border: 1px solid var
 button:hover { border-color: var(--line-2); background: var(--surface-3); }
 button:focus-visible, #rail button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 button:disabled { opacity: .45; cursor: default; }
-button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; width: 100%; margin-top: 8px; }
-button.primary:hover { filter: brightness(1.08); background: var(--accent); }
+button.primary { background: var(--accent-btn); border-color: var(--accent-btn); color: var(--accent-ink); font-weight: 600; width: 100%; margin-top: 8px; }
+button.primary:hover { filter: brightness(1.12); background: var(--accent-btn); }
 .actions button.primary, .row button.primary { width: auto; margin-top: 0; }
 .row button.primary, .row button.danger { flex: 1; }
 button.danger { color: var(--err); border-color: color-mix(in srgb, var(--err) 45%, transparent); background: color-mix(in srgb, var(--err) 10%, transparent); font-weight: 600; }
