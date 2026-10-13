@@ -8,7 +8,7 @@ Particle-size distributions are compared with Mann–Whitney and
 Kolmogorov–Smirnov tests and Cliff's delta (effect size). P-values are
 Holm-corrected across the comparisons made.
 
-    nuscope compare A=projects/a/recipe_run B=projects/b/recipe_run
+    nuscope-tomo compare A=projects/a/recipe_run B=projects/b/recipe_run
 """
 from __future__ import annotations
 

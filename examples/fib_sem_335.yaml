@@ -1,5 +1,5 @@
 # NUScope-TOMO recipe — FIB-SEM slice-and-view, sample 335 (SE, 20 x 5 x 5 nm voxels)
-# Run:  nuscope run examples/fib_sem_335.yaml
+# Run:  nuscope-tomo run examples/fib_sem_335.yaml
 name: fib_sem_335
 project: projects/fib_sem_335/recipe_run
 input:

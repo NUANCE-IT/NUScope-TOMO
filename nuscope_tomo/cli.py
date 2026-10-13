@@ -1,11 +1,11 @@
 """``nuscope`` command line.
 
-    nuscope info   <volume.zarr | tiff folder>
-    nuscope ops                       # list recipe operations and parameters
-    nuscope run    recipe.yaml [-p project_dir]
-    nuscope studio [project_dir] [--port 8765]
-    nuscope watch  <acquisition folder> -p project --voxel 20 5 5 [--model rf.pkl]
-    nuscope compare NAME=project_dir [NAME=project_dir ...] [--out dir]
+    nuscope-tomo info   <volume.zarr | tiff folder>
+    nuscope-tomo ops                       # list recipe operations and parameters
+    nuscope-tomo run    recipe.yaml [-p project_dir]
+    nuscope-tomo studio [project_dir] [--port 8765]
+    nuscope-tomo watch  <acquisition folder> -p project --voxel 20 5 5 [--model rf.pkl]
+    nuscope-tomo compare NAME=project_dir [NAME=project_dir ...] [--out dir]
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from pathlib import Path
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="nuscope", description="NUScope-TOMO — FIB-SEM tomography")
+    ap = argparse.ArgumentParser(prog="nuscope-tomo", description="NUScope-TOMO — FIB-SEM tomography")
     sub = ap.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("info", help="describe a volume")
     a.add_argument("path")

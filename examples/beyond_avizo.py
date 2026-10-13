@@ -2,7 +2,7 @@
 
     python examples/beyond_avizo.py [project_dir]
 
-Needs the outputs of ``nuscope run examples/fib_sem_335.yaml``. Writes tables
+Needs the outputs of ``nuscope-tomo run examples/fib_sem_335.yaml``. Writes tables
 to ``<project>/tables/beyond_*.csv`` and figures 16–19 to ``<project>/gallery``.
 """
 from __future__ import annotations

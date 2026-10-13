@@ -279,7 +279,7 @@ PAGES.confidence = async () => {
     const names = live.columns.filter((c) => c.startsWith("err_") && !/pore/.test(c)).map((c) => c.slice(4));
     Charts.lines($("#c-live"), { logY: true, xLabel: "milled depth (µm)", yf: (v) => `${v.toFixed(0)} %`, refY: { v: 5, label: "±5 %" },
       series: names.map((n, i) => ({ name: shortPhase(n), color: PH_COLOR(n, i), pts: live.filter((r) => r[`err_${n}`] != null).map((r) => ({ x: r.depth_um, y: 100 * r[`err_${n}`] })) })) });
-  } else Charts.empty($("#c-live"), "No live acquisition yet. Run nuscope watch next to the microscope.");
+  } else Charts.empty($("#c-live"), "No live acquisition yet. Run nuscope-tomo watch next to the microscope.");
 };
 
 // ------------------------------------------------------------------ chemistry

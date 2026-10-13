@@ -2,7 +2,7 @@
 
     python examples/showcase.py [project_dir]
 
-Reads the volumes/tables written by ``nuscope run examples/fib_sem_335.yaml``
+Reads the volumes/tables written by ``nuscope-tomo run examples/fib_sem_335.yaml``
 and writes figures, renders and animations into ``<project>/gallery``.
 The EDS panel uses the *simulated* EDS forward model on the real
 segmentation (no EDS was acquired for this dataset) and is labelled as such.

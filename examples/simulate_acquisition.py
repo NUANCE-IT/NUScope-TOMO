@@ -2,7 +2,7 @@
 
     python examples/simulate_acquisition.py projects/fib_sem_335/raw.zarr /tmp/acq --rate 20
 
-Used to demonstrate and test ``nuscope watch`` without a microscope.
+Used to demonstrate and test ``nuscope-tomo watch`` without a microscope.
 """
 import argparse
 import time

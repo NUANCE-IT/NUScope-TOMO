@@ -1,7 +1,7 @@
 """Live acquisition mode (not available in Avizo): analyse slices while the
 FIB is still milling.
 
-``nuscope watch <folder>`` follows the folder Auto Slice & View writes to.
+``nuscope-tomo watch <folder>`` follows the folder Auto Slice & View writes to.
 Each complete new image is cropped, destriped, shading-corrected,
 brightness-matched, binned, denoised and (optionally) classified with a
 trained model, then appended to growing Zarr stores in ``<project>/live``.

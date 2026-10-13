@@ -38,14 +38,14 @@ coordination 3.0).*
 | **Segmentation** | Otsu / multi-Otsu / hysteresis, **random-forest classifier trained from a few scribbles** (41 multi-scale features), majority smoothing, watershed separation of touching particles |
 | **Quantification** | per object: volume, surface area, equivalent diameter, sphericity, solidity, Feret, ellipsoid axes, elongation/flatness, orientation, nearest neighbour, intensity/element means. Per phase: volume fraction, specific surface, interface density, Euler number, percolation, geodesic tortuosity, continuous size distribution |
 | **Materials analyses** | triple-phase boundary length density (total / active), steady-state diffusion & conduction solver (D_eff/D₀, tortuosity factor, MacMullin number; Avizo XLab counterpart), pore- and particle-network model (throat/contact sizes, coordination numbers) |
-| **Beyond Avizo** | **data-health inspector** (per-slice SNR, sharpness, curtaining, drift, blank/duplicate slices, automatic slice-thickness check), **uncertainty on every number** (integral-range sampling error, ±1-voxel segmentation sensitivity, representative-volume size), **live acquisition mode** (`nuscope watch`: analyse while the FIB mills, tells you when precision is reached), **self-supervised Noise2Void** denoising and a **2.5D U-Net** trained from scribbles (Apple MPS / CUDA). See [docs/IDEAS.md](docs/IDEAS.md) |
-| **Acquisition & experiment design** | **acquisition advisor** (pixel size, slice thickness from feature sizes and an empirical "would coarser sampling change the answer?" test; depth / field of view for a target precision), **cohort comparison** (`nuscope compare`: sampling-aware statistics, Holm correction, minimum detectable difference, volume needed to detect it) |
+| **Beyond Avizo** | **data-health inspector** (per-slice SNR, sharpness, curtaining, drift, blank/duplicate slices, automatic slice-thickness check), **uncertainty on every number** (integral-range sampling error, ±1-voxel segmentation sensitivity, representative-volume size), **live acquisition mode** (`nuscope-tomo watch`: analyse while the FIB mills, tells you when precision is reached), **self-supervised Noise2Void** denoising and a **2.5D U-Net** trained from scribbles (Apple MPS / CUDA). See [docs/IDEAS.md](docs/IDEAS.md) |
+| **Acquisition & experiment design** | **acquisition advisor** (pixel size, slice thickness from feature sizes and an empirical "would coarser sampling change the answer?" test; depth / field of view for a target precision), **cohort comparison** (`nuscope-tomo compare`: sampling-aware statistics, Holm correction, minimum detectable difference, volume needed to detect it) |
 | **Sparse & fused chemistry** | context-driven sparse EDS by **deep kernel learning** (after Kalinin, Ziatdinov et al.) with SE and BSE context; **coupled-NMF pan-sharpening** of a coarse EDS map with physically linked high-resolution channels (BSE, Castaing's rule; after Borodinov, Kalinin, Ovchinnikova et al., npj Comput. Mater. 2019); benchmark with SE-invisible chemistry |
 | **Self-driving slice-and-view** | agent that refocuses, corrects drift, adapts dwell and slice thickness, takes sparse EDS and stops at the requested precision; **Thermo Fisher AutoScript** backend (dry-run by default, arming phrase, safety limits; not yet run on hardware), digital twin built from your own data, shadow mode that records the AutoScript calls an autonomous run would issue |
 | **Chemistry (EDS)** | element-map stacks → registration to SE → 3D composition → unsupervised chemical phases (k-means / GMM / NMF) → composition per SE phase or object; forward simulator for validation |
 | **Visualization** | GPU renders (volume, phase surfaces with cut-away, objects coloured by any measurement), turntable MP4s, figure panels with true aspect and scale bars |
 | **Studio** | NUScope-TOMO Studio, a browser application: project home with pipeline status and key results; viewer (linked XY/XZ/YZ + WebGL 3D, layouts, voxel/phase readout, keyboard shortcuts); FIB-SEM Wizard; scribble annotation → random forest or U-Net; Measure, Confidence, Chemistry and Acquire workspaces with interactive charts; self-driving twin runs with live charts and a stop button; ⌘K search over pages, data and operations; light and dark themes. Every action is recorded as a recipe |
-| **Recipes** | YAML pipelines, `nuscope run`; every step logged with parameters, timings and library versions in `provenance.json` |
+| **Recipes** | YAML pipelines, `nuscope-tomo run`; every step logged with parameters, timings and library versions in `provenance.json` |
 
 ## Install
 
@@ -57,12 +57,12 @@ uv pip install -e ".[dev]"          # add ",ai" for Noise2Void / U-Net (PyTorch)
 ## Use
 
 ```bash
-nuscope run examples/fib_sem_335.yaml          # full pipeline on a slice-and-view stack
-nuscope studio projects/fib_sem_335            # open http://127.0.0.1:8765
-nuscope ops                                    # list operations and parameters
-nuscope watch /acq/folder -p projects/run --voxel 20 5 5 --model rf.pkl   # live mode
+nuscope-tomo run examples/fib_sem_335.yaml          # full pipeline on a slice-and-view stack
+nuscope-tomo studio projects/fib_sem_335            # open http://127.0.0.1:8765
+nuscope-tomo ops                                    # list operations and parameters
+nuscope-tomo watch /acq/folder -p projects/run --voxel 20 5 5 --model rf.pkl   # live mode
 python examples/beyond_avizo.py                # data health, Noise2Void, U-Net, RVE
-nuscope compare A=projects/a/run B=projects/b/run --out cohort
+nuscope-tomo compare A=projects/a/run B=projects/b/run --out cohort
 python examples/chemical_fusion.py             # sparse DKL vs pan-sharpening benchmark
 python examples/self_driving.py agent          # autonomous run on the digital twin
 python examples/showcase.py                    # figures, renders and animation
@@ -81,7 +81,7 @@ vol = denoise_nlm(destripe(align(auto_crop(vol))["volume"]))
 phases = random_forest(vol, scribbles="annotations.json", classes=3)["volume"]
 ```
 
-Remote use: run `nuscope studio --host 0.0.0.0` on the workstation that holds the data
+Remote use: run `nuscope-tomo studio --host 0.0.0.0` on the workstation that holds the data
 and open it from any laptop. The browser only receives slices and a downsampled 3D preview.
 
 ## Design notes

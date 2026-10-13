@@ -48,7 +48,11 @@ Homepage = "https://github.com/NUANCE-IT/NUScope-TOMO"
 Author = "https://github.com/rmsreis"
 
 [project.scripts]
-nuscope = "nuscope_tomo.cli:main"
+nuscope-tomo = "nuscope_tomo.cli:main"
+
+# Also available as `nuscope tomo ...` when the NUScope platform package is installed.
+[project.entry-points."nuscope.commands"]
+tomo = "nuscope_tomo.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["nuscope_tomo*"]
