@@ -1,6 +1,6 @@
 # Authors
 
-**NuScope-TOMO** was created by **Roberto dos Reis ([@rmsreis](https://github.com/rmsreis))**,
+**NUScope-TOMO** was created by **Roberto dos Reis ([@rmsreis](https://github.com/rmsreis))**,
 NUANCE Center, Northwestern University, who conceived the project, defined its scope
 (an open, modern alternative to the Thermo Fisher Avizo FIB-SEM workflow with correlative chemical
 analysis) and directs its development.

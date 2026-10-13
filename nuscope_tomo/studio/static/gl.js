@@ -1,4 +1,4 @@
-// NuScope Studio — WebGL2 ray-marching volume renderer.
+// NUScope-TOMO Studio — WebGL2 ray-marching volume renderer.
 // Modes: 0 = direct volume rendering, 1 = MIP, 2 = shaded iso-surface,
 // 3 = label surfaces (with grey values on clip faces).
 "use strict";

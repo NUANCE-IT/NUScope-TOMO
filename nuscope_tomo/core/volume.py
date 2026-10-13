@@ -1,6 +1,6 @@
 """Out-of-core 3D volume: a Dask array plus physical voxel size and metadata.
 
-Every volume in NuScope-TOMO is (Z, Y, X) with Z the FIB milling direction.
+Every volume in NUScope-TOMO is (Z, Y, X) with Z the FIB milling direction.
 Data lives in chunked Zarr v3 stores and is touched through Dask, so stacks
 larger than RAM can flow through the whole pipeline. ``preview()`` and
 ``roi()`` are the explicit points where data is materialised in memory.

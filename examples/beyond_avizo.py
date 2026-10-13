@@ -1,4 +1,4 @@
-"""Analyses NuScope-TOMO adds beyond Avizo, run on sample 335.
+"""Analyses NUScope-TOMO adds beyond Avizo, run on sample 335.
 
     python examples/beyond_avizo.py [project_dir]
 

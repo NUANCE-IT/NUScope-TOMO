@@ -1,4 +1,4 @@
-# NuScope-TOMO
+# NUScope-TOMO
 
 **Open FIB-SEM slice-and-view tomography — from raw slices to quantified, chemically
 resolved 3D microstructure.**
@@ -6,7 +6,7 @@ resolved 3D microstructure.**
 Created by **Roberto dos Reis ([@rmsreis](https://github.com/rmsreis))** · NUANCE Center,
 Northwestern University · [NUANCE-IT/NUScope-TOMO](https://github.com/NUANCE-IT/NUScope-TOMO)
 
-NuScope-TOMO is an open alternative to **Thermo Fisher Avizo** for FIB-SEM in materials
+NUScope-TOMO is an open alternative to **Thermo Fisher Avizo** for FIB-SEM in materials
 science. It covers import, pre-processing (with a guided FIB-SEM wizard), AI segmentation,
 quantification, triple-phase boundaries, pore/particle networks, transport simulation,
 visualization/animation and recipes. It also adds correlative EDS chemistry. Everything is
@@ -44,7 +44,7 @@ coordination 3.0).*
 | **Self-driving slice-and-view** | agent that refocuses, corrects drift, adapts dwell and slice thickness, takes sparse EDS and stops at the requested precision; **Thermo Fisher AutoScript** backend (dry-run by default, arming phrase, safety limits; not yet run on hardware), digital twin built from your own data, shadow mode that records the AutoScript calls an autonomous run would issue |
 | **Chemistry (EDS)** | element-map stacks → registration to SE → 3D composition → unsupervised chemical phases (k-means / GMM / NMF) → composition per SE phase or object; forward simulator for validation |
 | **Visualization** | GPU renders (volume, phase surfaces with cut-away, objects coloured by any measurement), turntable MP4s, figure panels with true aspect and scale bars |
-| **Studio** | browser UI: **FIB-SEM Wizard** (guided pre-processing, like Avizo's DualBeam 3D Wizard), linked XY/XZ/YZ views, WebGL2 ray-marched 3D (DVR / MIP / iso / labels, clipping), scribble annotation → train → segment, every operation as a form, sortable measurement tables. All actions are auto-recorded as a recipe |
+| **Studio** | NUScope-TOMO Studio, a browser application: project home with pipeline status and key results; viewer (linked XY/XZ/YZ + WebGL 3D, layouts, voxel/phase readout, keyboard shortcuts); FIB-SEM Wizard; scribble annotation → random forest or U-Net; Measure, Confidence, Chemistry and Acquire workspaces with interactive charts; self-driving twin runs with live charts and a stop button; ⌘K search over pages, data and operations; light and dark themes. Every action is recorded as a recipe |
 | **Recipes** | YAML pipelines, `nuscope run`; every step logged with parameters, timings and library versions in `provenance.json` |
 
 ## Install
@@ -130,5 +130,5 @@ MIT, see [LICENSE](LICENSE). Copyright (c) 2026 Roberto dos Reis (@rmsreis).
 
 ## Citation
 
-If NuScope-TOMO helps your research, please cite it using [CITATION.cff](CITATION.cff).
+If NUScope-TOMO helps your research, please cite it using [CITATION.cff](CITATION.cff).
 Author: Roberto dos Reis (@rmsreis).

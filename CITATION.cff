@@ -1,6 +1,6 @@
 cff-version: 1.2.0
-message: "If you use NuScope-TOMO in your research, please cite it as below."
-title: "NuScope-TOMO: open FIB-SEM slice-and-view tomography with correlative EDS chemistry"
+message: "If you use NUScope-TOMO in your research, please cite it as below."
+title: "NUScope-TOMO: open FIB-SEM slice-and-view tomography with correlative EDS chemistry"
 authors:
   - family-names: "dos Reis"
     given-names: "Roberto"

@@ -7,7 +7,7 @@ slice. Feature computation is 2D per FIB slice (the XY resolution is usually
 much finer than the slice thickness) with optional neighbouring-slice context.
 
 Annotations are an integer volume of the same shape (0 = unlabelled,
-1..K = class), e.g. painted in NuScope Studio and saved with the project.
+1..K = class), e.g. painted in NUScope-TOMO Studio and saved with the project.
 """
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-# NuScope-TOMO — plan
+# NUScope-TOMO — plan
 
 Goal: an open, scriptable, modern alternative to **Thermo Fisher Avizo** for FIB-SEM
 slice-and-view in materials science (import → pre-processing → AI segmentation →
@@ -10,7 +10,7 @@ package extensions (XLab, pore network modelling, XFiber, XDVC).
 
 ## Feature map vs. Avizo for FIB-SEM
 
-| Avizo capability | NuScope-TOMO | Status |
+| Avizo capability | NUScope-TOMO | Status |
 |---|---|---|
 | Large datasets, EM / spectroscopy formats | `io.stack` (TIFF folders, multipage TIFF, Thermo Fisher pixel-size tags) → chunked Zarr v3 | done |
 | Stack alignment for drift | `preprocess.align`: sub-pixel phase correlation, multi-baseline least squares, registered-stack detection, fiducial ROI | done |

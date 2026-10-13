@@ -15,7 +15,7 @@ from pathlib import Path
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="nuscope", description="NuScope-TOMO — FIB-SEM tomography")
+    ap = argparse.ArgumentParser(prog="nuscope", description="NUScope-TOMO — FIB-SEM tomography")
     sub = ap.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("info", help="describe a volume")
     a.add_argument("path")

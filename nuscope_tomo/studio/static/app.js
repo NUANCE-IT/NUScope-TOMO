@@ -1,4 +1,4 @@
-// NuScope Studio — UI logic (no build step, no framework).
+// NUScope-TOMO Studio — UI logic (no build step, no framework).
 "use strict";
 
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -19,34 +19,39 @@ async function loadProject() {
   S.project = p; S.vols = Object.fromEntries(p.volumes.map(v => [v.id, v]));
   $("#project-name").textContent = `${p.name} · v${p.version}`;
   const vl = $("#volumes"); vl.innerHTML = "";
-  for (const v of p.volumes) {
+  const q = ($("#vol-filter").value || "").toLowerCase();
+  for (const v of p.volumes.filter(v => v.id.toLowerCase().includes(q))) {
     const d = document.createElement("div");
     d.className = "item" + (v.id === S.base ? " base" : "") + (v.id === S.ovl ? " ovl" : "");
+    const parts = v.id.split("/"), leaf = parts.pop(), dir = parts.filter(x => x !== "volumes").join("/");
     d.innerHTML = `<span class="k ${v.kind}">${v.kind === "labels" ? "LBL" : v.kind === "element" ? "EDS" : "IMG"}</span>
-      <span>${v.id}</span><span class="s">${v.shape.join("×")}</span>`;
-    d.title = "click: show as base / labels go to overlay";
+      <span>${leaf}${dir ? ` <em class="dir">${dir}</em>` : ""}</span><span class="s">${v.shape.join("×")}</span>`;
+    d.title = `${v.id}\nClick to show it (label volumes become the overlay)`;
     d.onclick = () => v.kind === "labels" ? setOverlay(v.id) : setBase(v.id);
     vl.appendChild(d);
   }
   for (const [sel, kinds, none] of [["#base-sel", ["intensity","element"], false], ["#ovl-sel", ["labels"], true]]) {
     const el = $(sel), cur = sel === "#base-sel" ? S.base : S.ovl;
-    el.innerHTML = (none ? `<option value="">— none —</option>` : "") +
+    el.innerHTML = (none ? `<option value="">None</option>` : "") +
       p.volumes.filter(v => kinds.includes(v.kind)).map(v => `<option ${v.id === cur ? "selected" : ""}>${v.id}</option>`).join("");
   }
   const list = (el, items, fn) => { el.innerHTML = ""; for (const t of items) { const d = document.createElement("div");
     d.className = "item"; d.textContent = t; d.onclick = () => fn(t); el.appendChild(d); } };
   list($("#tables"), p.tables, showTable);
   list($("#media"), p.media, m => window.open(`/api/media/${m}`, "_blank"));
-  if (!S.base) { const first = p.volumes.find(v => v.kind !== "labels"); if (first) await setBase(first.id); }
+  window.onProject && window.onProject(p);
+  const pick = (kinds, prefs) => { const vs = p.volumes.filter(v => kinds.includes(v.kind) && !v.id.startsWith("live/"));
+    for (const re of prefs) { const v = vs.find(v => re.test(v.id)); if (v) return v; } return vs[0]; };
+  if (!S.base) { const first = pick(["intensity", "element"], [/volumes\/denoised$/, /denoised/, /wizard/, /corrected/, /^raw$/]); if (first) await setBase(first.id); }
   if (!S.ovl && !S.ovlChosen) { S.ovlChosen = true;
-    const l = p.volumes.find(v => v.kind === "labels" && !v.id.includes("object")); if (l) await setOverlay(l.id); }
+    const l = pick(["labels"], [/volumes\/phases$/, /phases/, /^(?!.*(object|particle))/]); if (l) await setOverlay(l.id); }
 }
 
 async function setBase(id) {
   S.base = id; S.sliceCache.clear();
   const info = S.info[id] = await (await api(`/api/volume/${id}/info`)).json();
   S.pos = info.shape.map(n => n >> 1);
-  drawHist(info); $("#vol-info").textContent = describe(info);
+  drawHist(info); $("#vol-info").textContent = describe(info); statusLayers();
   for (const v of S.views) v.fit();
   refreshSlices(); load3D(); loadProject();
 }
@@ -54,7 +59,11 @@ async function setOverlay(id) {
   S.ovl = id || null; S.ovlChosen = true; S.sliceCache.clear();
   if (id) S.info[id] = await (await api(`/api/volume/${id}/info`)).json();
   refreshSlices(); load3D(); loadProject();
-  if (id) labelLegend(S.info[id]);
+  if (id) labelLegend(S.info[id]); else $("#legend").replaceChildren();
+  statusLayers();
+}
+function statusLayers() {
+  $("#sb-layers").textContent = S.base ? `Base ${S.base}${S.ovl ? ` · overlay ${S.ovl}` : ""}` : "";
 }
 function describe(i) {
   const e = i.extent_um.map(x => x.toFixed(2));
@@ -65,6 +74,9 @@ function labelLegend(info) {
   const ids = Object.keys(cls);
   if (ids.length) S.cls = ids.map(k => ({ name: cls[k] }));
   renderClasses();
+  const lg = $("#legend"); lg.replaceChildren();
+  for (const k of ids) { const d = document.createElement("div"), i = document.createElement("i");
+    i.style.background = PALETTE[(+k - 1) % PALETTE.length]; d.append(i, document.createTextNode(`${k} · ${cls[k]}`)); lg.appendChild(d); }
 }
 
 // ------------------------------------------------------------------ slices
@@ -168,6 +180,7 @@ class SliceView {
     });
     this.cv.addEventListener("pointermove", e => {
       const [x, y] = at(e);
+      if (!drag && !stroke) this.readout(x, y);
       if (stroke) { const [u, v] = this.toVoxel(x, y); stroke.points.push([v | 0, u | 0]); this.draw(); return; }
       if (!drag) return;
       if (drag.pan) { this.pan[0] += x - drag.pan[0]; this.pan[1] += y - drag.pan[1]; drag.pan = [x, y]; this.draw(); }
@@ -180,6 +193,26 @@ class SliceView {
       S.pos[this.axis] = Math.max(0, Math.min(n - 1, S.pos[this.axis] + Math.sign(e.deltaY) * (e.shiftKey ? 10 : 1)));
       refreshSlices(); }, { passive: false });
     this.cv.addEventListener("dblclick", () => { this.fit(); this.draw(); });
+  }
+  readout(x, y) {
+    const i = S.info[S.base]; if (!i) return;
+    const [u, v] = this.toVoxel(x, y), [ha, va] = [[2, 1], [2, 0], [1, 0]][this.axis];
+    const p = S.pos.slice(); p[ha] = Math.floor(u); p[va] = Math.floor(v);
+    if (p.some((c, k) => c < 0 || c >= i.shape[k])) { $("#sb-cursor").textContent = "Outside the volume"; return; }
+    clearTimeout(this._rt);
+    this._rt = setTimeout(async () => {
+      try {
+        const q = `z=${p[0]}&y=${p[1]}&x=${p[2]}`;
+        const [b, o] = await Promise.all([api(`/api/volume/${S.base}/value?${q}`).then(r => r.json()),
+          S.ovl ? api(`/api/volume/${S.ovl}/value?${q}`).then(r => r.json()) : null]);
+        const um = p.map((c, k) => (c * i.voxel_nm[k] / 1000).toFixed(2));
+        const sb = $("#sb-cursor"); sb.replaceChildren();
+        const add = (t, strong) => { const s = document.createElement(strong ? "b" : "span"); s.textContent = t; sb.appendChild(s); };
+        add(`z ${p[0]} · y ${p[1]} · x ${p[2]}`, true); add(`  (${um.join(", ")} µm)   value `);
+        add(String(typeof b.value === "number" ? +b.value.toFixed(3) : b.value), true);
+        if (o) { add("   phase "); add(o.name || String(o.value), true); }
+      } catch (e) { /* volume changed while hovering */ }
+    }, 60);
   }
   pick(x, y) {
     const [u, v] = this.toVoxel(x, y), sh = S.info[S.base].shape;
@@ -258,10 +291,19 @@ function colHist(i) {
 let OPS = [];
 async function loadOps() {
   OPS = await (await api("/api/ops")).json();
-  $("#op-sel").innerHTML = OPS.map((o, i) => `<option value="${i}">${o.name}</option>`).join("");
-  $("#op-sel").onchange = opForm; opForm();
+  const fill = () => { const q = ($("#op-filter").value || "").toLowerCase(), cur = $("#op-sel").value;
+    $("#op-sel").innerHTML = OPS.map((o, i) => [o, i]).filter(([o]) => (o.name + o.summary).toLowerCase().includes(q))
+      .map(([o, i]) => `<option value="${i}" title="${o.summary.replace(/"/g, "&quot;")}">${o.name}</option>`).join("");
+    if ([...$("#op-sel").options].some(o => o.value === cur)) $("#op-sel").value = cur; else $("#op-sel").selectedIndex = 0; };
+  $("#op-filter").oninput = () => { fill(); opForm(); };
+  fill(); $("#op-sel").onchange = opForm; opForm();
+}
+function selectOp(name) {
+  $("#op-filter").value = ""; $("#op-filter").oninput();
+  const i = OPS.findIndex(o => o.name === name); if (i >= 0) { $("#op-sel").value = String(i); opForm(); }
 }
 function opForm() {
+  if ($("#op-sel").value === "") { $("#op-doc").textContent = "No matching operation."; $("#op-form").innerHTML = ""; return; }
   const o = OPS[+$("#op-sel").value]; $("#op-doc").textContent = o.summary;
   const volOpts = S.project.volumes.map(v => `<option>${v.id}</option>`).join("");
   $("#op-form").innerHTML = o.inputs.map(n => `<label>${n} <select data-in="${n}"><option value="">—</option>${volOpts}</select></label>`).join("") +
@@ -287,9 +329,11 @@ async function pollJobs() {
   if (polling) return; polling = true;
   while (true) {
     const jobs = await (await api("/api/jobs")).json(), running = jobs.filter(j => j.status === "running");
+    window.onJobs && window.onJobs(jobs);
     const pill = $("#jobs-pill");
     pill.textContent = running.length ? `⟳ ${running.map(j => j.op).join(", ")}` : (jobs[0] ? `${jobs[0].op}: ${jobs[0].status} (${jobs[0].seconds}s)` : "idle");
     pill.classList.toggle("busy", running.length > 0);
+    pill.classList.toggle("failed", !running.length && !!jobs[0] && jobs[0].status === "error");
     if (jobs[0] && jobs[0].status === "error") pill.title = jobs[0].error;
     if (!running.length) { polling = false; await loadProject(); return; }
     await new Promise(r => setTimeout(r, 1000));
@@ -315,7 +359,7 @@ $("#save-ann").onclick = async () => { await api(`/api/annotations/${S.base}`, {
 $("#train").onclick = async () => {
   await $("#save-ann").onclick();
   const names = Object.fromEntries(S.cls.map((c, i) => [i + 1, c.name]));
-  runOp("segment.random_forest", { volume: S.base }, { scribbles: "@annotations", classes: S.cls.length, class_names: names }, true);
+  runOp($("#seg-model").value, { volume: S.base }, { scribbles: "@annotations", classes: S.cls.length, class_names: names }, true);
 };
 
 // ------------------------------------------------------------------- wizard
@@ -390,16 +434,13 @@ setInterval(pollLive, 3000);
 
 // ------------------------------------------------------------------- wiring
 function setMode(m) {
-  S.mode = m; $$("#modes button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
-  $("#panel-segment").hidden = m !== "segment"; $("#panel-recipe").hidden = m !== "recipe";
+  S.mode = m;
+  $("#panel-segment").hidden = m !== "segment";
   $("#panel-wizard").hidden = m !== "wizard"; $("#panel-ops").hidden = m === "wizard";
-  $("#panel-3d").hidden = m === "recipe" || m === "wizard";
-  if (m === "recipe") api("/api/recipe").then(r => r.text()).then(t => $("#recipe-text").textContent = t);
-  if (m === "analyze") { $("#drawer").classList.add("open");
-    const t = S.project.tables.find(t => t.includes("objects")) || S.project.tables[0]; if (t) showTable(t); }
-  if (m === "segment") { api(`/api/annotations/${S.base}`).then(r => r.json()).then(s => { S.strokes = s; annStat(); refreshSlices(); }); renderClasses(); }
+  $("#panel-3d").hidden = m === "wizard";
+  requestAnimationFrame(() => { relayout(); if (S.base && S.info[S.base]) drawHist(S.info[S.base]); });
+  if (m === "segment" && S.base) { api(`/api/annotations/${S.base}`).then(r => r.json()).then(s => { S.strokes = s; annStat(); refreshSlices(); }); renderClasses(); }
 }
-$$("#modes button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
 $("#base-sel").onchange = e => setBase(e.target.value);
 $("#ovl-sel").onchange = e => setOverlay(e.target.value);
 $("#ovl-alpha").oninput = e => { S.alpha = +e.target.value; refreshSlices(); };
@@ -419,10 +460,29 @@ for (const a of ["x", "y", "z"]) for (const k of [0, 1]) $(`#c${a}${k}`).oninput
 $("#snap").onclick = () => { const a = document.createElement("a"); a.href = $("#gl").toDataURL("image/png");
   a.download = "nuscope_3d.png"; a.click(); };
 (function spin() { if ($("#autorotate").checked && S.gl) { S.gl.state.yaw += 0.006; S.gl.draw(); } requestAnimationFrame(spin); })();
-window.addEventListener("resize", () => { S.views.forEach(v => { v.cv.width = 0; v.fit(); }); refreshSlices(); S.gl && S.gl.draw(); });
+function relayout() { S.views.forEach(v => { v.cv.width = 0; v.fit(); }); refreshSlices(); S.gl && S.gl.draw(); }
+window.addEventListener("resize", relayout);
+function setLayout(l) {
+  $("#views").className = { quad: "quad", main: "main", xy: "xy", "3d": "td" }[l];
+  $$("#layout-seg button").forEach(b => b.classList.toggle("on", b.dataset.l === l));
+  requestAnimationFrame(relayout);
+}
+$$("#layout-seg button").forEach(b => b.onclick = () => setLayout(b.dataset.l));
+$("#fit-views").onclick = relayout;
+$("#vol-filter").oninput = () => loadProject();
+document.addEventListener("keydown", e => {
+  if ($("#ws-viewer").hidden || e.target.closest("input, select, textarea") || e.metaKey || e.ctrlKey) return;
+  const i = S.info[S.base]; if (!i) return;
+  const step = e.shiftKey ? 10 : 1;
+  if (e.key === "ArrowUp" || e.key === "PageUp") { S.pos[0] = Math.max(0, S.pos[0] - step); refreshSlices(); e.preventDefault(); }
+  else if (e.key === "ArrowDown" || e.key === "PageDown") { S.pos[0] = Math.min(i.shape[0] - 1, S.pos[0] + step); refreshSlices(); e.preventDefault(); }
+  else if (e.key === "f" || e.key === "F") relayout();
+  else if (["1", "2", "3", "4"].includes(e.key)) setLayout(["quad", "main", "xy", "3d"][+e.key - 1]);
+});
 
 (async function init() {
   S.views = $$(".view[data-axis]").map(el => new SliceView(el));
   try { S.gl = new VolumeRenderer($("#gl")); } catch (e) { $("#gl-msg").textContent = e.message; }
   await loadProject(); await loadOps(); await loadWizard(); pollJobs(); renderClasses(); pollLive();
+  window.onStudioReady && window.onStudioReady();
 })();

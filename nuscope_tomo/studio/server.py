@@ -1,4 +1,4 @@
-"""NuScope Studio backend: serves a project's volumes, tables and renders to
+"""NUScope-TOMO Studio backend: serves a project's volumes, tables and renders to
 the browser UI, and runs registered operations as background jobs.
 
 Data never leaves the machine running the server; the browser only receives
@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import json
+import pickle
 import shutil
 import threading
 import time
@@ -29,6 +30,13 @@ from ..core.registry import get_op, list_ops
 from ..core.volume import META_FILE, Volume
 
 STATIC = Path(__file__).parent / "static"
+
+# Simulated chemistry for the twin's EDS (NMC-like phases of sample 335); replace with real
+# compositions when EDS reference spectra are available.
+DEFAULT_COMP = {1: {"C": .7, "O": .2, "Ni": .05, "Mn": .05},
+                2: {"Ni": .15, "Mn": .55, "Co": .05, "O": .25},
+                3: {"Ni": .45, "Mn": .15, "Co": .15, "O": .25},
+                4: {"Ni": .60, "Mn": .05, "Co": .10, "O": .25}}
 
 # Guided pre-processing for slice-and-view stacks (cf. Avizo "DualBeam 3D Wizard").
 WIZARD_STEPS = [
@@ -111,7 +119,7 @@ def _to_u8(a: np.ndarray, vol: Volume) -> np.ndarray:
 
 
 def create_app(project_dir: str | Path) -> FastAPI:
-    app = FastAPI(title="NuScope Studio", version=__version__)
+    app = FastAPI(title="NUScope-TOMO Studio", version=__version__)
     proj = Project(project_dir)
     jobs: dict[str, dict] = {}
 
@@ -129,7 +137,9 @@ def create_app(project_dir: str | Path) -> FastAPI:
                          "classes": v.meta.get("classes", {}),
                          "in_memory": vid in proj.memory})
         return {"root": str(proj.root), "name": proj.root.name, "version": __version__,
-                "volumes": vols, "tables": list(proj.tables), "media": list(proj.media)}
+                "volumes": vols, "tables": list(proj.tables), "media": list(proj.media),
+                "mtime": {t: proj.tables[t].stat().st_mtime for t in proj.tables},
+                "models": sorted(str(p.relative_to(proj.root)) for p in proj.root.rglob("*.pkl"))}
 
     @app.get("/api/volume/{vid:path}/info")
     def info(vid: str):
@@ -152,6 +162,14 @@ def create_app(project_dir: str | Path) -> FastAPI:
                           ).astype(np.uint8)
         return Response(_png(img), media_type="image/png",
                         headers={"Cache-Control": "max-age=3600"})
+
+    @app.get("/api/volume/{vid:path}/value")
+    def value(vid: str, z: int, y: int, x: int):
+        v = proj.volume(vid)
+        z, y, x = (int(np.clip(c, 0, n - 1)) for c, n in zip((z, y, x), v.shape))
+        val = np.asarray(v.data[z, y, x]).item()
+        name = v.meta.get("classes", {}).get(str(int(val))) if v.kind == "labels" else None
+        return {"value": val, "name": name, "z": z, "y": y, "x": x}
 
     @app.get("/api/volume/{vid:path}/preview3d")
     def preview3d(vid: str, max_voxels: int = 160**3):
@@ -293,7 +311,99 @@ def create_app(project_dir: str | Path) -> FastAPI:
 
     @app.get("/api/jobs")
     def list_jobs():
-        return sorted(jobs.values(), key=lambda j: -j["t0"])
+        return sorted(({k: v for k, v in j.items() if not k.startswith("_")} for j in jobs.values()),
+                      key=lambda j: -j["t0"])
+
+    # ------------------------------------------------------------ self-driving (twin)
+    agents: dict[str, dict] = {}
+    stop_file = proj.root / "autonomy" / "STOP"
+
+    @app.post("/api/agent/start")
+    def agent_start(req: dict = Body(...)):
+        """Run the slice-and-view agent on a digital twin of the project's data.
+
+        {"policy": "agent"|"fixed"|"fixed_stop", "clean": vid, "labels": vid, "model": path,
+         "target": 0.2, "max_depth_um": 16, "phases": [names], "eds_every": 25}
+        """
+        from ..autonomy import (DigitalTwin, Policy, SafetyLimits, ShadowAutoScript,
+                                SliceAndViewAgent, conventional_policy)
+        mode = req.get("policy", "agent")
+        jid = uuid.uuid4().hex[:8]
+        stop_file.parent.mkdir(exist_ok=True)
+        stop_file.unlink(missing_ok=True)
+        names = {"agent": "self-driving agent", "fixed": "fixed recipe",
+                 "fixed_stop": "fixed recipe + stop"}
+        jobs[jid] = {"id": jid, "op": f"twin run: {names.get(mode, mode)}", "status": "running",
+                     "t0": time.time(), "kind": "agent", "policy": mode}
+
+        def work():
+            try:
+                clean, labels = proj.volume(req["clean"]), proj.volume(req["labels"])
+                clf = pickle.loads((proj.root / req["model"]).read_bytes())
+                comp = {int(k): v for k, v in (req.get("compositions") or DEFAULT_COMP).items()}
+                twin = DigitalTwin(clean, labels, comp, limits=SafetyLimits(stop_file=stop_file),
+                                   noise_at_1us=10, seed=1)
+                common = dict(max_depth_nm=float(req.get("max_depth_um", 16)) * 1e3,
+                              eds_every=int(req.get("eds_every", 25)),
+                              target_rel_error=float(req.get("target", 0.2)),
+                              precision_phases=req.get("phases") or None, stats_every=10)
+                if mode == "agent":
+                    inst, pol = ShadowAutoScript(twin), Policy(max_slice_nm=60, **common)
+                else:
+                    inst, pol = twin, conventional_policy(dwell_us=3.0, **common)
+                    pol.stop_on_precision = mode == "fixed_stop"
+                ag = SliceAndViewAgent(inst, clf, pol)
+                agents[jid] = {"agent": ag, "inst": inst}
+                res = ag.run()
+                out = proj.root / "autonomy"
+                res["trace"].to_csv(out / f"{mode}_{jid}_trace.csv", index=False)
+                res["decisions"].to_csv(out / f"{mode}_{jid}_decisions.csv", index=False)
+                made = [f"autonomy/{mode}_{jid}_trace.csv", f"autonomy/{mode}_{jid}_decisions.csv"]
+                if hasattr(inst, "rec"):
+                    pd.DataFrame(inst.rec.calls.entries).to_csv(out / f"autoscript_{jid}.csv",
+                                                                index=False)
+                    made.append(f"autonomy/autoscript_{jid}.csv")
+                jobs[jid].update(status="done", outputs=made, summary={
+                    "reached": res["reached"], "time_h": res["time_h"], "depth_um": res["depth_um"],
+                    "slices": res["slices"], "eds_pixels": res["eds_pixels"],
+                    "final": {k: {"fraction": f, "rel_error": e} for k, (f, e) in res["final"].items()},
+                    "stopped": stop_file.exists()})
+            except Exception as e:
+                jobs[jid].update(status="error", error=str(e), trace=traceback.format_exc())
+            jobs[jid]["seconds"] = round(time.time() - jobs[jid]["t0"], 2)
+
+        threading.Thread(target=work, daemon=True).start()
+        return {"job": jid}
+
+    @app.post("/api/agent/stop")
+    def agent_stop():
+        stop_file.parent.mkdir(exist_ok=True)
+        stop_file.write_text(time.strftime("%Y-%m-%d %H:%M:%S"))
+        return {"stopped": True}
+
+    @app.get("/api/agent/{jid}")
+    def agent_status(jid: str):
+        if jid not in jobs:
+            raise HTTPException(404)
+        a = agents.get(jid)
+        doc = {k: v for k, v in jobs[jid].items() if not k.startswith("_")}
+        if a:
+            ag, inst = a["agent"], a["inst"]
+            doc["trace"] = json.loads(pd.DataFrame(list(ag.trace)).to_json(orient="records"))
+            doc["decisions"] = json.loads(pd.DataFrame(list(ag.decisions)[-300:]).to_json(
+                orient="records"))
+            doc["ledger_h"] = {k: v / 3600 for k, v in getattr(inst, "ledger", {}).items()}
+            doc["clock_h"] = inst.clock_s / 3600
+            if hasattr(inst, "rec"):
+                calls = pd.Series([c["call"] for c in inst.rec.calls.entries], dtype=object)
+                doc["autoscript_calls"] = calls.value_counts().to_dict()
+        return JSONResponse(json.loads(json.dumps(doc, default=float)))
+
+    @app.get("/api/recipe.json")
+    def recipe_json():
+        import yaml
+        p = proj.root / "studio_recipe.yaml"
+        return yaml.safe_load(p.read_text()) if p.exists() else {"steps": []}
 
     @app.get("/api/recipe")
     def recipe():
@@ -317,5 +427,5 @@ def _log_recipe(root: Path, req: dict):
 
 def serve(project_dir: str | Path = ".", host: str = "127.0.0.1", port: int = 8765):
     import uvicorn
-    print(f"NuScope Studio → http://{host}:{port}   (project: {Path(project_dir).resolve()})")
+    print(f"NUScope-TOMO Studio → http://{host}:{port}   (project: {Path(project_dir).resolve()})")
     uvicorn.run(create_app(project_dir), host=host, port=port, log_level="warning")

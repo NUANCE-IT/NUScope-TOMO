@@ -1,1 +1,1 @@
-"""NuScope Studio: browser-based UI (FastAPI backend + WebGL2 front-end)."""
+"""NUScope-TOMO Studio: browser-based UI (FastAPI backend + WebGL2 front-end)."""

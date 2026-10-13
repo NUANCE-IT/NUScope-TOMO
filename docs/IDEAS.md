@@ -1,12 +1,12 @@
 # Features Avizo does not have
 
-Brainstorm for NuScope-TOMO, created by Roberto dos Reis (@rmsreis). Each idea names the
-gap in the Avizo FIB-SEM workflow, what NuScope would do instead, and its status.
+Brainstorm for NUScope-TOMO, created by Roberto dos Reis (@rmsreis). Each idea names the
+gap in the Avizo FIB-SEM workflow, what NUScope would do instead, and its status.
 Ordered by how much they change what a microscopist can claim from a dataset.
 
 ## 1. Trust in the numbers
 
-| Idea | Gap in Avizo | NuScope | Status |
+| Idea | Gap in Avizo | NUScope | Status |
 |---|---|---|---|
 | **Uncertainty on every measurement** | Measurements are single numbers | Sampling error (integral range for fractions, block bootstrap for S/V and tortuosity) plus segmentation-boundary sensitivity (±1 acquired voxel), reported as 95 % intervals | done |
 | **Representative-volume check (RVE)** | No answer to "is my FIB volume big enough?" | Integral range from the phase covariance (Kanit et al. 2003), validated against independent realisations; reports the cube size needed for a target precision and how many RVEs the volume holds | done |
@@ -16,7 +16,7 @@ Ordered by how much they change what a microscopist can claim from a dataset.
 
 ## 2. While the microscope is still milling
 
-| Idea | Gap | NuScope | Status |
+| Idea | Gap | NUScope | Status |
 |---|---|---|---|
 | **Live acquisition mode** | Analysis starts after acquisition ends | `nuscope watch`: ingests slices as Auto Slice & View writes them, pre-processes and segments on the fly, updates Studio live, and reports when metrics reach RVE so milling can stop early | done |
 | Acquisition advisor | None | From early slices: pixel size and slice thickness from feature sizes and an empirical coarsening test ("would coarser sampling have changed the answer?"), plus the depth / field of view needed for a target precision | done |
@@ -26,7 +26,7 @@ Ordered by how much they change what a microscopist can claim from a dataset.
 
 ## 3. AI that is open and accountable
 
-| Idea | Gap | NuScope | Status |
+| Idea | Gap | NUScope | Status |
 |---|---|---|---|
 | **Self-supervised denoising (Noise2Void)** | Pre-trained or vendor-trained models | Trains on the dataset itself, no clean target needed, Apple MPS / CUDA | done |
 | **Sparse-label U-Net** | Deep learning needs dense ground truth or a vendor model | Trains from the same scribbles as the random forest: the forest's confident predictions become weighted pseudo-labels, the 2.5D network adds context along Z; model saved with the project | done |
@@ -36,7 +36,7 @@ Ordered by how much they change what a microscopist can claim from a dataset.
 
 ## 4. Beyond one dataset
 
-| Idea | Gap | NuScope | Status |
+| Idea | Gap | NUScope | Status |
 |---|---|---|---|
 | Cohort comparison | One project at a time | Compare samples with sampling-aware statistics, Holm correction, minimum detectable difference and the volume needed to detect it | done |
 | Statistical descriptors + synthetic twins | Only measured volume | Two-point correlation, chord lengths; generate larger statistically equivalent volumes for simulation | next |

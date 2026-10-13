@@ -3,132 +3,336 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NuScope Studio</title>
+<title>NUScope-TOMO Studio</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header id="top">
-  <div class="brand"><span class="logo">◈</span> NuScope <b>Studio</b></div>
-  <nav id="modes">
-    <button data-mode="wizard">FIB-SEM Wizard</button>
-    <button data-mode="explore" class="on">Explore</button>
-    <button data-mode="segment">Annotate &amp; Segment</button>
-    <button data-mode="analyze">Analyze</button>
-    <button data-mode="recipe">Recipe</button>
-  </nav>
-  <div id="project-name"></div>
-  <div id="live-pill" hidden></div>
-  <div id="jobs-pill" title="Background jobs">idle</div>
+  <div class="brand"><svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 7l9 5 9-5M12 12v10" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+    NUScope-TOMO <b>Studio</b></div>
+  <div id="project-name" class="chip"></div>
+  <button id="palette-btn" class="search" type="button" title="Search data, operations and pages">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.8"/></svg>
+    <span>Search data, operations, pages</span><kbd>⌘K</kbd></button>
+  <div class="top-right">
+    <div id="live-pill" hidden></div>
+    <button id="jobs-pill" type="button" title="Background jobs">idle</button>
+    <button id="theme-btn" type="button" class="icon" title="Switch light / dark theme" aria-label="Switch theme">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.7"/></svg></button>
+  </div>
 </header>
 
-<main id="layout">
-  <aside id="left">
-    <section>
-      <h3>Data objects</h3>
-      <div id="volumes"></div>
-    </section>
-    <section>
-      <h3>Tables</h3>
-      <div id="tables"></div>
-    </section>
-    <section>
-      <h3>Media</h3>
-      <div id="media"></div>
-    </section>
-  </aside>
+<nav id="rail" aria-label="Workspaces">
+  <button data-ws="home" title="Project home"><svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7v9h-5v-6H9v6H4z"/></svg><span>Home</span></button>
+  <button data-ws="explore" title="View volumes"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><path d="M13.5 17h7M17 13.5v7"/></svg><span>View</span></button>
+  <button data-ws="wizard" title="Guided pre-processing"><svg viewBox="0 0 24 24"><path d="M4 20 15 9M14 4v3M18 6l-2 2M20 10h-3M9 5l1 2M5 9l2 1"/></svg><span>Prepare</span></button>
+  <button data-ws="segment" title="Annotate and segment"><svg viewBox="0 0 24 24"><path d="M4 20c3-1 4-4 6-6l6-6 3 3-6 6c-2 2-5 3-6 6z"/><path d="M14 6l4 4"/></svg><span>Segment</span></button>
+  <button data-ws="measure" title="Measurements"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Measure</span></button>
+  <button data-ws="confidence" title="Data health and uncertainty"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg><span>Confidence</span></button>
+  <button data-ws="chemistry" title="Sparse and fused chemistry"><svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/><path d="M7.5 15h9"/></svg><span>Chemistry</span></button>
+  <button data-ws="acquire" title="Live and self-driving acquisition"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l2.5 2.5M16.5 16.5 19 19M19 5l-2.5 2.5M7.5 16.5 5 19"/></svg><span>Acquire</span></button>
+  <button data-ws="recipe" title="Recorded recipe"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h7M9 8h3"/></svg><span>Recipe</span></button>
+</nav>
 
-  <section id="views">
-    <div class="view" data-axis="0"><canvas></canvas><div class="vlabel">XY · <span class="idx"></span></div></div>
-    <div class="view" data-axis="1"><canvas></canvas><div class="vlabel">XZ · <span class="idx"></span></div></div>
-    <div class="view" data-axis="2"><canvas></canvas><div class="vlabel">YZ · <span class="idx"></span></div></div>
-    <div class="view" id="view3d"><canvas id="gl"></canvas><div class="vlabel">3D · <span id="mode3d-label">volume</span></div>
-      <div id="gl-msg"></div></div>
+<main id="stage">
+  <!-- ======================================================== home -->
+  <section class="ws page" id="ws-home" hidden>
+    <div class="page-inner">
+      <div class="hero" id="home-hero"></div>
+      <h2 class="sec">Pipeline</h2>
+      <ol class="steps" id="home-steps"></ol>
+      <h2 class="sec">Key results</h2>
+      <div class="tiles" id="home-tiles"></div>
+      <div class="grid2">
+        <div class="card"><h3>Quick actions</h3><div class="actions" id="home-actions"></div></div>
+        <div class="card"><h3>Recent jobs</h3><div id="home-jobs" class="joblist"></div></div>
+      </div>
+    </div>
   </section>
 
-  <aside id="right">
-    <section id="panel-live" hidden>
-      <h3>Live acquisition</h3>
-      <div id="live-body" class="info"></div>
-    </section>
+  <!-- ======================================================== viewer -->
+  <section class="ws" id="ws-viewer" hidden>
+    <div id="layout">
+      <aside id="left">
+        <section>
+          <h3>Volumes</h3>
+          <input id="vol-filter" type="search" placeholder="Filter volumes" aria-label="Filter volumes">
+          <div id="volumes"></div>
+        </section>
+        <section>
+          <h3>Tables</h3>
+          <div id="tables"></div>
+        </section>
+        <section>
+          <h3>Media</h3>
+          <div id="media"></div>
+        </section>
+      </aside>
 
-    <section id="panel-display">
-      <h3>Display</h3>
-      <label>Base <select id="base-sel"></select></label>
-      <label>Overlay <select id="ovl-sel"><option value="">— none —</option></select></label>
-      <label>Overlay opacity <input id="ovl-alpha" type="range" min="0" max="1" step="0.05" value="0.45"></label>
-      <canvas id="hist" width="300" height="70"></canvas>
-      <div class="row"><label>Min <input id="win-lo" type="range" min="0" max="255" value="0"></label>
-        <label>Max <input id="win-hi" type="range" min="0" max="255" value="255"></label></div>
-      <div id="vol-info" class="info"></div>
-    </section>
+      <section id="center">
+        <div id="viewbar">
+          <div class="seg" id="layout-seg" role="group" aria-label="View layout">
+            <button data-l="quad" class="on" title="Four views (1)">2×2</button>
+            <button data-l="main" title="One large XY + three (2)">1+3</button>
+            <button data-l="xy" title="XY only (3)">XY</button>
+            <button data-l="3d" title="3D only (4)">3D</button>
+          </div>
+          <span class="vb-sep"></span>
+          <button id="fit-views" type="button" title="Fit all views (F)">Fit</button>
+          <span id="vb-hint">Scroll: slice · Shift+scroll: ×10 · ⌘/Ctrl+scroll: zoom · Right-drag: pan</span>
+        </div>
+        <div id="views" class="quad">
+          <div class="view" data-axis="0"><canvas></canvas><div class="vlabel">XY · <span class="idx"></span></div></div>
+          <div class="view" data-axis="1"><canvas></canvas><div class="vlabel">XZ · <span class="idx"></span></div></div>
+          <div class="view" data-axis="2"><canvas></canvas><div class="vlabel">YZ · <span class="idx"></span></div></div>
+          <div class="view" id="view3d"><canvas id="gl"></canvas><div class="vlabel">3D · <span id="mode3d-label">volume</span></div>
+            <div id="gl-msg"></div></div>
+        </div>
+      </section>
 
-    <section id="panel-3d">
-      <h3>3D rendering</h3>
-      <div class="seg" id="mode3d">
-        <button data-m="0" class="on">Volume</button><button data-m="1">MIP</button>
-        <button data-m="2">Iso</button><button data-m="3">Labels</button>
+      <aside id="right">
+        <section id="panel-live" hidden>
+          <h3>Live acquisition</h3>
+          <div id="live-body" class="info"></div>
+        </section>
+
+        <section id="panel-wizard" hidden>
+          <h3>FIB-SEM Wizard</h3>
+          <p class="hint">Guided pre-processing of the base volume. Untick steps you don't need;
+            parameters are editable. The result is saved to the project and recorded in the recipe.</p>
+          <ol id="wiz-steps"></ol>
+          <button id="wiz-run" class="primary">Run wizard on base volume</button>
+          <div id="wiz-stat" class="info"></div>
+        </section>
+
+        <section id="panel-segment" hidden>
+          <h3>Annotate</h3>
+          <p class="hint">Paint a few strokes per class on XY slices, then train. Right-drag pans, ⌘/Ctrl+scroll zooms.</p>
+          <div id="classes"></div>
+          <div class="row"><button id="add-class">Add class</button>
+            <label>Brush <input id="brush" type="range" min="1" max="25" value="5"></label></div>
+          <div class="row"><button id="erase-strokes">Undo stroke</button><button id="save-ann">Save</button></div>
+          <label>Model
+            <select id="seg-model"><option value="segment.random_forest">Random forest (fast)</option>
+              <option value="segment.unet">2.5D U-Net (GPU, slower)</option></select></label>
+          <button id="train" class="primary">Train &amp; segment</button>
+          <div id="ann-stat" class="info"></div>
+        </section>
+
+        <section id="panel-display">
+          <h3>Display</h3>
+          <label>Base <select id="base-sel"></select></label>
+          <label>Overlay <select id="ovl-sel"><option value="">None</option></select></label>
+          <label>Overlay opacity <input id="ovl-alpha" type="range" min="0" max="1" step="0.05" value="0.45"></label>
+          <div id="legend" class="legend"></div>
+          <canvas id="hist" width="300" height="70"></canvas>
+          <div class="row"><label>Min <input id="win-lo" type="range" min="0" max="255" value="0"></label>
+            <label>Max <input id="win-hi" type="range" min="0" max="255" value="255"></label></div>
+          <div id="vol-info" class="info"></div>
+        </section>
+
+        <section id="panel-3d">
+          <h3>3D rendering</h3>
+          <div class="seg" id="mode3d">
+            <button data-m="0" class="on">Volume</button><button data-m="1">MIP</button>
+            <button data-m="2">Iso</button><button data-m="3">Labels</button>
+          </div>
+          <label>Colormap <select id="cmap">
+            <option>bone</option><option>inferno</option><option>ice-fire</option><option>viridis</option><option>gray</option></select></label>
+          <label>Opacity / threshold <input id="tf-thr" type="range" min="0" max="1" step="0.01" value="0.35"></label>
+          <label>Density <input id="tf-dens" type="range" min="0.05" max="3" step="0.05" value="1"></label>
+          <div class="clip">
+            <span>Clip X</span><input id="cx0" type="range" min="0" max="1" step="0.01" value="0"><input id="cx1" type="range" min="0" max="1" step="0.01" value="1">
+            <span>Clip Y</span><input id="cy0" type="range" min="0" max="1" step="0.01" value="0"><input id="cy1" type="range" min="0" max="1" step="0.01" value="1">
+            <span>Clip Z</span><input id="cz0" type="range" min="0" max="1" step="0.01" value="0"><input id="cz1" type="range" min="0" max="1" step="0.01" value="1">
+          </div>
+          <label class="chk"><input id="cut-faces" type="checkbox" checked> Grey values on cut faces</label>
+          <label class="chk"><input id="autorotate" type="checkbox"> Auto-rotate</label>
+          <button id="snap">Save PNG</button>
+        </section>
+
+        <section id="panel-ops">
+          <h3>Operations</h3>
+          <input id="op-filter" type="search" placeholder="Filter operations" aria-label="Filter operations">
+          <select id="op-sel" size="7"></select>
+          <div id="op-doc" class="hint"></div>
+          <div id="op-form"></div>
+          <label class="chk"><input id="op-save" type="checkbox" checked> Save result to project</label>
+          <button id="op-run" class="primary">Run</button>
+        </section>
+      </aside>
+    </div>
+    <section id="drawer">
+      <div id="drawer-head"><span id="drawer-title">Table</span><button id="drawer-toggle" aria-label="Show or hide table">▾</button></div>
+      <div id="drawer-body">
+        <div id="table-wrap"></div>
+        <canvas id="col-hist" width="360" height="180"></canvas>
       </div>
-      <label>Colormap <select id="cmap">
-        <option>bone</option><option>inferno</option><option>ice-fire</option><option>viridis</option><option>gray</option></select></label>
-      <label>Opacity / threshold <input id="tf-thr" type="range" min="0" max="1" step="0.01" value="0.35"></label>
-      <label>Density <input id="tf-dens" type="range" min="0.05" max="3" step="0.05" value="1"></label>
-      <div class="clip">
-        <span>Clip X</span><input id="cx0" type="range" min="0" max="1" step="0.01" value="0"><input id="cx1" type="range" min="0" max="1" step="0.01" value="1">
-        <span>Clip Y</span><input id="cy0" type="range" min="0" max="1" step="0.01" value="0"><input id="cy1" type="range" min="0" max="1" step="0.01" value="1">
-        <span>Clip Z</span><input id="cz0" type="range" min="0" max="1" step="0.01" value="0"><input id="cz1" type="range" min="0" max="1" step="0.01" value="1">
+    </section>
+  </section>
+
+  <!-- ======================================================== measure -->
+  <section class="ws page" id="ws-measure" hidden>
+    <div class="page-inner">
+      <header class="page-head">
+        <div><h1>Measurements</h1>
+          <p class="lede">Phase metrics, particles and transport on the current label overlay. Results update when you run an analysis.</p></div>
+        <div class="actions" id="measure-actions"></div>
+      </header>
+      <div class="grid2">
+        <div class="card"><h3>Volume fractions</h3><p class="note" id="m-frac-note"></p><div class="chart" id="m-frac"></div></div>
+        <div class="card"><h3>Phase metrics</h3><p class="note" id="m-phase-note"></p><div class="tbl-wrap" id="m-phases"></div></div>
+        <div class="card"><h3>Particle size</h3><p class="note" id="m-size-note"></p><div class="chart" id="m-size"></div></div>
+        <div class="card"><h3>Particle shape</h3><p class="note">Each dot is one particle fully inside the volume. Sphericity 1 is a sphere.</p><div class="chart" id="m-shape"></div></div>
+        <div class="card"><h3>Transport</h3><p class="note">Tortuosity factor per phase and direction from a steady diffusion solve; 1 is a straight path.</p><div class="chart" id="m-transport"></div></div>
+        <div class="card"><h3>Triple-phase boundary</h3><div id="m-tpb" class="tiles small"></div></div>
       </div>
-      <label class="chk"><input id="cut-faces" type="checkbox" checked> grey values on cut faces</label>
-      <label class="chk"><input id="autorotate" type="checkbox"> auto-rotate</label>
-      <button id="snap">Save PNG</button>
-    </section>
+      <div class="card">
+        <div class="card-head"><h3>Table explorer</h3>
+          <div class="row tight"><select id="tx-sel" aria-label="Table"></select><input id="tx-search" type="search" placeholder="Search rows" aria-label="Search rows"></div></div>
+        <p class="note">Click a column header to sort it and see its distribution.</p>
+        <div class="tx">
+          <div class="tbl-wrap tall" id="tx-table"></div>
+          <div class="chart" id="tx-hist"></div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-    <section id="panel-wizard" hidden>
-      <h3>FIB-SEM Wizard</h3>
-      <p class="hint">Guided pre-processing of the base volume. Untick steps you don't need;
-        parameters are editable. The result is saved to the project and recorded in the recipe.</p>
-      <ol id="wiz-steps"></ol>
-      <button id="wiz-run" class="primary">Run wizard on base volume</button>
-      <div id="wiz-stat" class="info"></div>
-    </section>
+  <!-- ======================================================== confidence -->
+  <section class="ws page" id="ws-confidence" hidden>
+    <div class="page-inner">
+      <header class="page-head">
+        <div><h1>Confidence</h1>
+          <p class="lede">How far the numbers can be trusted: slice quality, sampling error, the volume a precise answer needs, and whether coarser sampling would have changed it.</p></div>
+        <div class="actions" id="conf-actions"></div>
+      </header>
+      <div class="card"><h3>Data health, slice by slice</h3><p class="note" id="c-qc-note"></p><div class="chart" id="c-qc"></div></div>
+      <div class="grid2">
+        <div class="card"><h3>Fractions with both error sources</h3><p class="note">Upper whisker: 95 % sampling range. Lower whisker: every boundary moved by one voxel.</p><div class="chart" id="c-unc"></div></div>
+        <div class="card"><h3>Volume needed for ±5 %</h3><p class="note" id="c-rve-note"></p><div class="chart" id="c-rve"></div></div>
+        <div class="card"><h3>Would coarser sampling change the answer?</h3><p class="note" id="c-adv-note"></p><div class="chart" id="c-adv"></div></div>
+        <div class="card"><h3>Precision while milling</h3><p class="note">Relative error of each phase fraction as slices arrived in live mode. Dashed: ±5 % target.</p><div class="chart" id="c-live"></div></div>
+      </div>
+    </div>
+  </section>
 
-    <section id="panel-segment" hidden>
-      <h3>Annotate (scribbles)</h3>
-      <p class="hint">Paint a few strokes per class on XY slices, then train. Right-drag pans, ⌘/Ctrl+wheel zooms.</p>
-      <div id="classes"></div>
-      <div class="row"><button id="add-class">+ class</button>
-        <label>Brush <input id="brush" type="range" min="1" max="25" value="5"></label></div>
-      <div class="row"><button id="erase-strokes">Undo stroke</button><button id="save-ann">Save</button></div>
-      <button id="train" class="primary">Train random forest &amp; segment</button>
-      <div id="ann-stat" class="info"></div>
-    </section>
+  <!-- ======================================================== chemistry -->
+  <section class="ws page" id="ws-chemistry" hidden>
+    <div class="page-inner">
+      <header class="page-head">
+        <div><h1>Chemistry</h1>
+          <p class="lede">Correlative EDS with the SE volume, and ways to map chemistry with a fraction of the EDS time: context-driven sparse EDS (deep kernel learning, after Kalinin and Ziatdinov) and coupled-NMF pan-sharpening with BSE (after Borodinov et al., 2019).</p></div>
+        <div class="actions" id="chem-actions"></div>
+      </header>
+      <div class="card">
+        <div class="card-head"><h3>Reconstruction quality by method</h3>
+          <div class="seg" id="chem-metric" role="group" aria-label="Measure">
+            <button data-m="rmse" class="on">Composition error</button>
+            <button data-m="phase_acc">Phase accuracy</button>
+            <button data-m="hidden_contrast">Hidden region recovered</button></div></div>
+        <p class="note" id="chem-note"></p>
+        <div class="chart" id="chem-chart"></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><h3>What the benchmark shows</h3>
+          <ul class="facts">
+            <li>Sparse EDS guided only by the SE image misses chemistry that SE cannot see.</li>
+            <li>Adding the BSE image, whose signal follows composition, recovers most of it at a tenth of the EDS time.</li>
+            <li>Pan-sharpening with BSE also finds the hidden region; with few element channels it is limited by EDS counting statistics.</li>
+          </ul>
+          <p class="note">EDS in this benchmark is simulated on the real segmentation. Run it with <code>python examples/chemical_fusion.py</code>.</p></div>
+        <div class="card"><h3>Correlate real EDS maps</h3>
+          <p class="note">Import element-map exports (e.g. AZtec TIFFs), register them to the SE stack, find chemical phases and the composition of every segmented phase or particle.</p>
+          <button id="chem-open-op" class="primary">Open the EDS tomography operation</button></div>
+      </div>
+    </div>
+  </section>
 
-    <section id="panel-ops">
-      <h3>Operations</h3>
-      <select id="op-sel"></select>
-      <div id="op-doc" class="hint"></div>
-      <div id="op-form"></div>
-      <label class="chk"><input id="op-save" type="checkbox" checked> save result to project</label>
-      <button id="op-run" class="primary">Run</button>
-    </section>
+  <!-- ======================================================== acquire -->
+  <section class="ws page" id="ws-acquire" hidden>
+    <div class="page-inner">
+      <header class="page-head">
+        <div><h1>Acquire</h1>
+          <p class="lede">Follow an acquisition while the FIB mills, and run the self-driving agent on a digital twin of this sample before any beam time.</p></div>
+      </header>
+      <div class="grid2">
+        <div class="card" id="acq-agent-card">
+          <h3>Self-driving run on the digital twin</h3>
+          <p class="note">The agent mills, refocuses, corrects drift, adapts dwell and slice thickness, takes sparse EDS and stops at the precision you ask for. Its Thermo Fisher AutoScript calls are recorded in dry-run only.</p>
+          <div class="form">
+            <label>Policy <select id="ag-policy">
+              <option value="agent">Self-driving agent</option>
+              <option value="fixed_stop">Fixed recipe, stop at precision</option>
+              <option value="fixed">Fixed recipe, full depth</option></select></label>
+            <label>Specimen (clean volume) <select id="ag-clean"></select></label>
+            <label>Phase map <select id="ag-labels"></select></label>
+            <label>Classifier <select id="ag-model"></select></label>
+            <div class="row">
+              <label>Target error <select id="ag-target"><option value="0.2">±20 %</option><option value="0.1">±10 %</option><option value="0.05">±5 %</option></select></label>
+              <label>Depth limit (µm) <input id="ag-depth" type="number" min="1" max="50" step="1" value="16"></label>
+            </div>
+            <label>Phases that must reach the target <input id="ag-phases" type="text" value="dark phase, grey phase"></label>
+          </div>
+          <div class="row">
+            <button id="ag-run" class="primary">Start twin run</button>
+            <button id="ag-stop" class="danger" disabled>Stop after this slice</button>
+          </div>
+          <div id="ag-status" class="status-line"></div>
+        </div>
+        <div class="card">
+          <h3>Live acquisition</h3>
+          <div id="acq-live"></div>
+          <p class="note">Start it next to the microscope with <code>nuscope watch &lt;acquisition folder&gt; -p &lt;project&gt; --voxel 20 5 5 --model rf.pkl</code>. Studio follows the growing volume in the View workspace.</p>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="card"><h3>Precision against instrument time</h3><p class="note">Fraction error (95 %) of the phases that must reach the target. Dashed: target.</p><div class="chart" id="ag-prec"></div></div>
+        <div class="card"><h3>Slice thickness and dwell</h3><p class="note">What the run used at each slice.</p><div class="chart" id="ag-ctrl"></div></div>
+        <div class="card"><h3>Where the time goes</h3><div class="chart" id="ag-ledger"></div><div id="ag-calls" class="note"></div></div>
+        <div class="card"><h3>Decision log</h3><div id="ag-log" class="log"></div></div>
+      </div>
+      <div class="card"><h3>Earlier comparison of policies</h3><p class="note" id="ag-ab-note"></p><div class="chart" id="ag-ablation"></div></div>
+    </div>
+  </section>
 
-    <section id="panel-recipe" hidden>
-      <h3>Recipe (auto-recorded)</h3>
-      <pre id="recipe-text"></pre>
-    </section>
-  </aside>
+  <!-- ======================================================== recipe -->
+  <section class="ws page" id="ws-recipe" hidden>
+    <div class="page-inner">
+      <header class="page-head">
+        <div><h1>Recipe</h1>
+          <p class="lede">Every action in Studio is recorded as a step. Run the same pipeline on another dataset with <code>nuscope run studio_recipe.yaml</code>.</p></div>
+        <div class="actions"><button id="recipe-copy">Copy YAML</button></div>
+      </header>
+      <ol class="timeline" id="recipe-steps"></ol>
+      <details class="card"><summary>YAML</summary><pre id="recipe-text"></pre></details>
+    </div>
+  </section>
 </main>
 
-<section id="drawer">
-  <div id="drawer-head"><span id="drawer-title">Jobs</span><button id="drawer-toggle">▾</button></div>
-  <div id="drawer-body">
-    <div id="table-wrap"></div>
-    <canvas id="col-hist" width="360" height="180"></canvas>
-  </div>
-</section>
+<footer id="statusbar">
+  <span id="sb-cursor">Move over a slice to read voxels</span>
+  <span id="sb-layers"></span>
+  <span class="sb-right">NUScope-TOMO · created by <a href="https://github.com/rmsreis" target="_blank" rel="noopener">Roberto dos Reis (@rmsreis)</a> · <a href="https://github.com/NUANCE-IT/NUScope-TOMO" target="_blank" rel="noopener">NUANCE-IT/NUScope-TOMO</a></span>
+</footer>
 
-<footer>NuScope-TOMO · created by <a href="https://github.com/rmsreis" target="_blank">Roberto dos Reis (@rmsreis)</a> · <a href="https://github.com/NUANCE-IT/NUScope-TOMO" target="_blank">NUANCE-IT/NUScope-TOMO</a></footer>
+<div id="palette" hidden>
+  <div class="pal-box" role="dialog" aria-label="Search">
+    <input id="pal-input" type="text" placeholder="Search pages, volumes, operations, tables" autocomplete="off" aria-label="Search">
+    <ol id="pal-list"></ol>
+    <div class="pal-foot">↑↓ to move · Enter to open · Esc to close</div>
+  </div>
+</div>
+<aside id="jobs-panel" hidden aria-label="Jobs">
+  <div class="jp-head"><h3>Jobs</h3><button id="jp-close" class="icon" aria-label="Close">×</button></div>
+  <div id="jp-list" class="joblist"></div>
+</aside>
+<div id="toasts" aria-live="polite"></div>
 
 <script src="gl.js"></script>
+<script src="charts.js"></script>
 <script src="app.js"></script>
+<script src="shell.js"></script>
+<script src="pages.js"></script>
 </body>
 </html>
