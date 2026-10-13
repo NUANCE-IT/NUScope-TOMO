@@ -45,6 +45,7 @@ ai = ["torch>=2.2"]
 
 [project.urls]
 Homepage = "https://github.com/NUANCE-IT/NUScope-TOMO"
+Author = "https://github.com/rmsreis"
 
 [project.scripts]
 nuscope = "nuscope_tomo.cli:main"
