@@ -57,6 +57,11 @@ Acquisition advisor; cohort statistics with detectability; sparse DKL and couple
 pan-sharpened chemistry (benchmarked with SE-invisible chemistry); self-driving slice-and-view
 (AutoScript backend in dry-run, digital twin, shadow mode). See docs/IDEAS.md.
 
+## Later (not scheduled)
+
+- Electron tomography (tilt-series TEM/STEM): alignment, reconstruction (WBP/SIRT), on top of the same
+  Volume, recipe and Studio layers. Requested by Roberto dos Reis; not started.
+
 ## Next milestones
 
 1. Active learning in Studio (annotate where the model is least certain); model cards.
