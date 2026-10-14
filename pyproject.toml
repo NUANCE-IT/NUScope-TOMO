@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nuscope-tomo"
-version = "0.2.0"
+version = "0.3.0"
 description = "Open FIB-SEM slice-and-view tomography: alignment, artifact correction, ML segmentation, 3D quantification and correlative EDS chemistry, with a browser-based Studio."
 readme = "README.md"
 license = "MIT"
@@ -14,10 +14,14 @@ authors = [{ name = "Roberto dos Reis", email = "robertomsreis@gmail.com" }]
 maintainers = [{ name = "Roberto dos Reis (@rmsreis)" }]
 keywords = ["FIB-SEM", "slice and view", "tomography", "segmentation", "EDS", "microscopy", "Avizo alternative", "materials science"]
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Image Processing",
     "Topic :: Scientific/Engineering :: Physics",
-    "Intended Audience :: Science/Research",
 ]
 dependencies = [
     "numpy>=1.26",
@@ -40,11 +44,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "httpx"]
+dev = ["pytest", "httpx", "build", "twine"]
 ai = ["torch>=2.2"]
 
 [project.urls]
 Homepage = "https://github.com/NUANCE-IT/NUScope-TOMO"
+Issues = "https://github.com/NUANCE-IT/NUScope-TOMO/issues"
+NUScope = "https://nuance-it.github.io/NUScope/"
 Author = "https://github.com/rmsreis"
 
 [project.scripts]

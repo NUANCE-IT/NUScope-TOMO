@@ -50,9 +50,13 @@ coordination 3.0).*
 ## Install
 
 ```bash
-uv venv --python 3.12 && source .venv/bin/activate
-uv pip install -e ".[dev]"          # add ",ai" for Noise2Void / U-Net (PyTorch)
+pip install nuscope-tomo            # or "nuscope-tomo[ai]" for Noise2Void / U-Net (PyTorch)
 ```
+
+For development, in a clone: `uv pip install -e ".[dev]"`. With [NUScope](https://github.com/NUANCE-IT/NUScope)
+installed, the same commands are also available as `nuscope tomo ...`. With
+[NUANCE-MCP](https://github.com/NUANCE-IT/NUANCE-MCP) installed, NUScope-TOMO adds tools for tomography
+projects (`tomo_project`, `tomo_table`, `tomo_volume`, `tomo_ops`, `tomo_run`, `tomo_job`).
 
 ## Use
 
