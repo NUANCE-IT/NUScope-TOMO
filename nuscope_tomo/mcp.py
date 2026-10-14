@@ -8,6 +8,8 @@ project, read its results and run a recipe, without touching the microscope:
 * ``tomo_table``     a result table (phase fractions, particles, quality ...), summarized
 * ``tomo_volume``    shape, voxel size and metadata of one volume
 * ``tomo_ops``       the recipe operations and their parameters
+* ``tomo_phase_fractions`` volume fraction and surface density of each phase of a labelled
+  volume, with sampling standard errors from the covariance integral range
 * ``tomo_run``       run a YAML recipe in the background; ``tomo_job`` follows it
 
 Recipe runs write their outputs and provenance into the project folder, as
@@ -89,6 +91,21 @@ def register(ctx) -> None:
         return {"name": v.name, "shape": list(v.shape), "dtype": str(v.dtype),
                 "voxel_nm": list(v.voxel_size.as_tuple()),
                 "size_um": [round(s / 1e3, 3) for s in v.extent_nm], "meta": meta}
+
+    @mcp.tool(name="tomo_phase_fractions")
+    def tomo_phase_fractions(labels: str) -> dict:
+        """Volume fraction, ±sampling standard error and surface density (1/µm) of every phase in a
+        labelled volume (.zarr written by a recipe, e.g. volumes/phases.zarr). The error says how far the
+        fraction could move with a different field of view of the same size."""
+        import math
+        from .cohort import summarize
+        from .core.volume import Volume
+        vol = Volume.from_zarr(Path(labels).expanduser())
+        df = summarize(vol)["phases"]
+        rows = [{k: (None if isinstance(v, float) and not math.isfinite(v) else v) for k, v in r.items()}
+                for r in df.to_dict(orient="records")]
+        return {"labels": str(labels), "voxel_nm": list(vol.voxel_size.as_tuple()),
+                "volume_um3": rows[0]["volume_um3"] if rows else 0.0, "phases": rows}
 
     @mcp.tool(name="tomo_ops")
     def tomo_ops() -> dict:

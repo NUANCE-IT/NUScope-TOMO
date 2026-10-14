@@ -51,3 +51,14 @@ def test_run_job_reports_errors(tmp_path, tools):
         time.sleep(0.05)
     assert st["status"] == "error" and "missing.yaml" in st["error"]
     assert "no job" in tools["tomo_job"]("nope")["error"]
+
+
+def test_phase_fractions(tmp_path, tools):
+    lab = np.zeros((16, 32, 32), np.uint8)
+    lab[:, :, 8:] = 1
+    lab[:, :, 24:] = 2
+    Volume(lab, VoxelSize(20, 10, 10), name="phases", kind="labels",
+           meta={"classes": {"1": "solid", "2": "binder"}}).to_zarr(tmp_path / "phases.zarr")
+    r = tools["tomo_phase_fractions"](str(tmp_path / "phases.zarr"))
+    f = {p["name"]: p["fraction"] for p in r["phases"]}
+    assert f == {"solid": 0.5, "binder": 0.25} and r["voxel_nm"] == [20.0, 10.0, 10.0]
