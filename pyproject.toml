@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nuscope-tomo"
-version = "0.3.1"
+version = "0.3.2"
 description = "Open FIB-SEM slice-and-view tomography: alignment, artifact correction, ML segmentation, 3D quantification and correlative EDS chemistry, with a browser-based Studio."
 readme = "README.md"
 license = "MIT"
