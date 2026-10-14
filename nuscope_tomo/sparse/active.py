@@ -12,7 +12,6 @@ from typing import Callable
 import numpy as np
 from scipy.interpolate import griddata
 
-from .dkl import DKLRegressor, extract_patches
 
 
 def _spread_top(var: np.ndarray, coords: np.ndarray, taken: np.ndarray, k: int,
@@ -45,6 +44,7 @@ def active_sparse(se_img: np.ndarray, grid_shape: tuple[int, int], bin_xy: int,
     ny, nx = grid_shape
     coords = np.argwhere(np.ones(grid_shape, bool))
     centers = coords * bin_xy + bin_xy // 2
+    from .dkl import DKLRegressor, extract_patches   # PyTorch: the optional [ai] extra
     P = extract_patches(se_img, centers, patch)
     N = len(coords)
     n_init = max(8, int(init * N))
