@@ -135,6 +135,27 @@ def test_eds_registration_and_phase_recovery():
     assert adjusted_rand_score(ph[reg.z_index].ravel(), lab.ravel()) > 0.6
 
 
+def test_eds_tomography_op(tmp_path):
+    ph = phantom((20, 192, 192), corr=(3, 24, 24))
+    rng = np.random.default_rng(4)
+    se = Volume((ph * 60 + rng.normal(0, 8, ph.shape)).clip(0, 255).astype(np.uint8),
+                VoxelSize(20, 5, 5))
+    labels = se.derive(ph.astype(np.uint8), kind="labels", classes={"1": "a", "2": "b", "3": "c"})
+    comp = {1: {"Ni": .6, "Mn": .2, "O": .2}, 2: {"Ni": .1, "Mn": .1, "O": .8},
+            3: {"Ni": .05, "Mn": .75, "O": .2}}
+    eds, _ = simulate_eds(ph, comp, se.voxel_size, bin_xy=8, every=2, counts_per_pixel=80)
+    for el, m in eds.maps.items():
+        (tmp_path / el).mkdir()
+        for k, img in enumerate(m):
+            tifffile.imwrite(tmp_path / el / f"map_{k:03d}.tif", img.astype(np.float32))
+    from nuscope_tomo.core.registry import get_op
+    out = get_op("chem.eds_tomography").func(se, labels, eds_root=str(tmp_path),
+                                             eds_voxel_nm=eds.voxel_size.as_tuple(), eds_every=2)
+    assert len(out["registration"]) == eds.shape[0]
+    assert out["chem_phases"].shape == (eds.shape[0], *se.shape[1:])
+    assert set(out["composition_by_class"]["name"]) == {"a", "b", "c"}
+
+
 def test_recipe_end_to_end(tmp_path):
     ph = phantom((12, 96, 128))
     folder = tmp_path / "slices"

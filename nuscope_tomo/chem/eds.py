@@ -234,14 +234,15 @@ def eds_tomography(volume: Volume, labels: Optional[Volume] = None, eds_root: st
     vs = VoxelSize(*eds_voxel_nm) if eds_voxel_nm else volume.voxel_size.scaled(eds_every, 1, 1)
     eds = read_eds_folders(eds_root, vs, z_index=None)
     eds.z_index = np.arange(eds.shape[0]) * eds_every
-    reg = denoise_counts(register_to_se(eds, volume), sigma_nm)
+    aligned = register_to_se(eds, volume)
+    reg = denoise_counts(aligned, sigma_nm)
     comp = composition(reg)
     lab, table = chemical_phases(comp, n_phases, method)
     out = {"phases_table": table,
            "chem_phases": Volume(lab, reg.voxel_size, "chem_phases", "labels",
                                  {"classes": {str(r.phase): r.dominant
                                               for r in table.itertuples()}}),
-           "registration": pd.DataFrame(reg.shifts_px, columns=["dy_px", "dx_px"]),
+           "registration": pd.DataFrame(aligned.shifts_px, columns=["dy_px", "dx_px"]),
            "eds": reg}
     if labels is not None:
         out["composition_by_class"] = composition_by_label(comp, labels.numpy(),
