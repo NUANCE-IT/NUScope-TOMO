@@ -1,6 +1,6 @@
 ; Inno Setup script for the NUScope-TOMO Windows installer.
 ; Built by .github/workflows/app.yml after PyInstaller has produced build\dist\NUScope-TOMO\.
-;   iscc /DAppVersion=0.3.2 packaging\windows\installer.iss
+;   iscc /DAppVersion=0.3.3 packaging\windows\installer.iss
 ; Installs per user by default (no administrator rights needed); an administrator can choose all users.
 
 #ifndef AppVersion
