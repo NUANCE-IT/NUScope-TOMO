@@ -46,6 +46,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest", "httpx", "build", "twine"]
 ai = ["torch>=2.2"]
+app = ["pywebview>=5"]                # the desktop window (nuscope-tomo app)
 
 [project.urls]
 Homepage = "https://github.com/NUANCE-IT/NUScope-TOMO"
@@ -55,6 +56,9 @@ Author = "https://github.com/rmsreis"
 
 [project.scripts]
 nuscope-tomo = "nuscope_tomo.cli:main"
+
+[project.gui-scripts]
+nuscope-tomo-app = "nuscope_tomo.app:main"
 
 # Also available as `nuscope tomo ...` when the NUScope platform package is installed.
 [project.entry-points."nuscope.commands"]

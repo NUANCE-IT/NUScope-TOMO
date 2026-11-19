@@ -4,6 +4,7 @@
     nuscope-tomo ops                       # list recipe operations and parameters
     nuscope-tomo run    recipe.yaml [-p project_dir]
     nuscope-tomo studio [project_dir] [--port 8765]
+    nuscope-tomo app    [project_dir]          # the Studio in a desktop window
     nuscope-tomo watch  <acquisition folder> -p project --voxel 20 5 5 [--model rf.pkl]
     nuscope-tomo compare NAME=project_dir [NAME=project_dir ...] [--out dir]
 """
@@ -27,6 +28,8 @@ def main(argv=None) -> int:
     s.add_argument("project", nargs="?", default=".")
     s.add_argument("--port", type=int, default=8765)
     s.add_argument("--host", default="127.0.0.1")
+    d = sub.add_parser("app", help="open the Studio in a desktop window")
+    d.add_argument("project", nargs="?")
     w = sub.add_parser("watch", help="live mode: analyse slices while the FIB mills")
     w.add_argument("folder")
     w.add_argument("-p", "--project", required=True)
@@ -78,6 +81,9 @@ def main(argv=None) -> int:
         plot(res, str(out / "cohort.png"))
         print(res["tests"][["a", "b", "phase", "metric", "difference", "p_holm",
                             "significant"]].to_string())
+    elif args.cmd == "app":
+        from .app import main as app_main
+        return app_main([args.project] if args.project else [])
     elif args.cmd == "studio":
         from .studio.server import serve
         serve(args.project, host=args.host, port=args.port)
