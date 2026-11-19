@@ -8,3 +8,6 @@ projects/
 results/cache/
 dist/
 build/
+
+# Local Claude Code settings
+.claude/
