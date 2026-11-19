@@ -1,0 +1,90 @@
+# Builds the NUScope-TOMO desktop app: a .dmg for macOS (Apple silicon and Intel) and a setup .exe for Windows.
+# Runs on version tags (attaches the installers to the GitHub release) and on demand from the Actions tab.
+# Each build starts the bundled Studio headless (--self-test) before it is packaged.
+# The installers are not code-signed yet: see docs/desktop-app.md.
+name: app
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:                 # test builds when the app or its packaging changes
+    paths:
+      - "nuscope_tomo/app.py"
+      - "packaging/**"
+      - ".github/workflows/app.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14          # Apple silicon
+            arch: arm64
+          - os: macos-15-intel    # Intel
+            arch: x64
+          - os: windows-latest
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install . "pywebview>=5" "pyinstaller>=6"
+
+      - name: Version
+        id: v
+        shell: bash
+        run: echo "version=$(python -c 'import nuscope_tomo; print(nuscope_tomo.__version__)')" >> "$GITHUB_OUTPUT"
+
+      - name: Build app
+        run: pyinstaller packaging/nuscope-tomo.spec --noconfirm --distpath build/dist --workpath build/work
+
+      - name: Self-test (macOS)
+        if: runner.os == 'macOS'
+        run: build/dist/NUScope-TOMO.app/Contents/MacOS/NUScope-TOMO --self-test && cat ~/.nuscope-tomo/self-test.json
+
+      - name: Self-test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $p = Start-Process build\dist\NUScope-TOMO\NUScope-TOMO.exe -ArgumentList "--self-test" -Wait -PassThru
+          Get-Content "$env:USERPROFILE\.nuscope-tomo\self-test.json"
+          if ($p.ExitCode -ne 0) { Get-Content "$env:USERPROFILE\.nuscope-tomo\app.log" -ErrorAction SilentlyContinue; exit 1 }
+
+      - name: Disk image (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p build/dmg build/installer
+          cp -R build/dist/NUScope-TOMO.app build/dmg/
+          ln -s /Applications build/dmg/Applications
+          hdiutil create -volname "NUScope-TOMO" -srcfolder build/dmg -ov -format UDZO \
+            "build/installer/NUScope-TOMO-${{ steps.v.outputs.version }}-macos-${{ matrix.arch }}.dmg"
+
+      - name: Installer (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=${{ steps.v.outputs.version }}" packaging\windows\installer.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NUScope-TOMO-${{ steps.v.outputs.version }}-${{ runner.os }}-${{ matrix.arch }}
+          path: build/installer/*
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/installer/*

@@ -11,7 +11,7 @@ import numpy as np  # noqa: E402
 from matplotlib.colors import ListedColormap  # noqa: E402
 
 from ..core.volume import Volume  # noqa: E402
-from .render import PALETTE  # noqa: E402
+from .palette import PALETTE  # noqa: E402
 
 STYLE = {
     "figure.facecolor": "#0b0f17", "axes.facecolor": "#0b0f17", "savefig.facecolor": "#0b0f17",

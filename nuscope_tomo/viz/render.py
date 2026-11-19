@@ -23,8 +23,7 @@ from ..core.volume import Volume
 pv.OFF_SCREEN = True
 
 # colour-blind-safe, high-contrast categorical palette (Okabe–Ito inspired)
-PALETTE = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00",
-           "#CC79A7", "#8DD3C7", "#FB8072", "#80B1D3"]
+from .palette import PALETTE  # noqa: E402,F401
 BG_TOP, BG_BOTTOM = "#1b2232", "#05070c"
 
 
