@@ -33,8 +33,15 @@ For those, install the Python package: `pip install "nuscope-tomo[ai]"`.
 
 The installers are not code-signed yet, so the system warns the first time:
 
-- **macOS:** "cannot be opened because the developer cannot be verified". Right-click (or Control-click)
-  NUScope-TOMO in Applications, choose **Open**, then **Open** again. Only needed once.
+- **macOS 15 and later:** "NUScope-TOMO Not Opened. Apple could not verify…". Click **Done** (not
+  Move to Trash), open **System Settings › Privacy & Security**, scroll to Security, click
+  **Open Anyway** next to the NUScope-TOMO message and confirm with your password. Then open the app
+  again and click **Open**. Only needed once.
+
+  Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/NUScope-TOMO.app`
+
+  (On macOS 14 and earlier, right-click the app, choose **Open**, then **Open** again. macOS 15
+  removed that shortcut.)
 - **Windows:** SmartScreen shows "Windows protected your PC". Click **More info**, then **Run anyway**.
 
 Signing removes these warnings. It needs an Apple Developer ID (for signing and notarization) and a
